@@ -850,18 +850,18 @@ async function renderSchedule() {
     // M2/M5/M7: show "Following front 9" instead of TBD time.
     if ([2, 5, 7].includes(n)) {
       let extra = '';
-      if (n === 7) extra = `<div style="margin-top:4px;font-size:0.9em;color:var(--muted)">1st Place A vs 2nd Place A</div>`;
+      if (n === 7) extra = `<div style="margin-top:4px;font-size:0.9em">1st Place A <span style="color:var(--muted)">vs</span> 2nd Place A</div>`;
       return `<div class="paircard" style="padding:14px 16px">
         <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
-        <div style="margin-top:4px;color:var(--muted)">Following front 9</div>${extra}
+        <div style="margin-top:4px;color:var(--muted)">Following front 9 · Dye Back</div>${extra}
       </div>`;
     }
-    // M6: show placeholder matchup until pairings are set
+    // M6: show placeholder in same format as real card (time · course + matchup)
     if (n === 6 && teeTime === 'TBD') {
       return `<div class="paircard" style="padding:14px 16px">
         <div style="font-weight:800;font-size:1.1em">Match 6</div>
-        <div style="margin-top:4px;color:var(--muted)">TBD</div>
-        <div style="margin-top:4px;font-size:0.9em;color:var(--muted)">1st Place A vs 4th Place A</div>
+        <div style="margin-top:4px">TBD · Dye Front</div>
+        <div style="margin-top:4px;font-size:0.9em">1st Place A <span style="color:var(--muted)">vs</span> 4th Place A</div>
       </div>`;
     }
     return `<div class="paircard" style="padding:14px 16px">
