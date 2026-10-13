@@ -367,7 +367,7 @@ function pairVsCard(ev, m) {
     topLine = 'Tied';
     botLine = ev.through != null ? `Thru ${ev.through}` : '';
   }
-  const statusHtml = `<div class="matchstatus"><div style="color:${leadColor};font-weight:800">${esc(topLine)}</div>${botLine ? `<div style="color:${leadColor};font-size:0.85em">${esc(botLine)}</div>` : ''}</div>`;
+  const statusHtml = `<div class="matchstatus"><div style="color:${leadColor};font-weight:800;font-size:1.3em">${esc(topLine)}</div>${botLine ? `<div style="color:#8895a2;font-size:1.1em;font-weight:700">${esc(botLine)}</div>` : ''}</div>`;
   const strip = (ev.holes || []).map(h => {
     const cls = h.winner === 'A' ? 'A' : h.winner === 'B' ? 'B' : h.winner === 'H' ? 'H' : '';
     return `<div class="holepip ${cls}">${h.hole}</div>`;
