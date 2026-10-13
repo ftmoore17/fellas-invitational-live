@@ -101,7 +101,7 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .paircard .phead { display: flex; justify-content: space-between; padding: 10px 14px; background: #f8fafc; font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .vs { display: flex; align-items: stretch; }
 .vs .side { flex: 1; padding: 12px 14px; }
-.vs .side.right { text-align: right; border-left: 1px solid var(--line); }
+.vs .side.right { text-align: right; }
 .vs .vsbadge { display: flex; align-items: center; padding: 0 6px; font-weight: 800; color: var(--navy-700); font-size: 13px; }
 .side .tlabel { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
 .side .pname { font-weight: 700; font-size: 14px; }
