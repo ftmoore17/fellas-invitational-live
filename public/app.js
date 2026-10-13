@@ -557,7 +557,7 @@ function renderScorecard() {
   // Player cards for current hole.
   // Per-hole strokes: floor(courseHcp/18) + (1 if stroke index <= courseHcp % 18).
   const strokesOnHole = (hcp, si) => Math.floor(hcp / 18) + (si <= (hcp % 18) ? 1 : 0);
-  const sideAIds = new Set((ev.sideA.players || []).map(x => x.id));
+  const sideAIds = new Set(((ev.sideA && ev.sideA.players) || []).map(x => x.id));
   const cards = scoringPlayers().map(p => {
     const curGross = ((d.scores || {})[p.id] || {})[cur.hole];
     const pl = !isScr ? [...ev.sideA.players, ...ev.sideB.players].find(x => x.id === p.id) : null;
