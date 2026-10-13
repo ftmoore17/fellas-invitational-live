@@ -303,11 +303,37 @@ function matchPairCard(m) {
   if (!m.rows || !m.rows.length) {
     return `<div class="card"><h2>${esc(m.label)}</h2><div class="sub">${m.tbd ? 'TBD' : ''}</div></div>`;
   }
+  // M3 scramble: separate by course (Norman vs Fazio), sort each by to-par
+  if (m.format === 'scramble') {
+    const byCourse = {};
+    m.rows.forEach(row => {
+      const c = row.courseName || 'TBD';
+      if (!byCourse[c]) byCourse[c] = [];
+      byCourse[c].push(row);
+    });
+    // Sort each course group by relPar ascending (nulls last)
+    Object.values(byCourse).forEach(group => {
+      group.sort((a, b) => {
+        const ap = a.relPar == null ? 999 : a.relPar;
+        const bp = b.relPar == null ? 999 : b.relPar;
+        return ap - bp;
+      });
+    });
+    const courseOrder = Object.keys(byCourse).sort();
+    return `
+    <div class="section-title" style="margin-top:14px">${esc(m.label)}</div>
+    ${courseOrder.map(course => `
+      <div class="section-title" style="margin-top:10px;font-size:0.9em;color:var(--muted)">${esc(course)}</div>
+      ${byCourse[course].map(row => {
+        if (row.noCourse) return `<div class="paircard"><div class="phead"><span>${esc(row.teeTime || '')}</span><span>Course TBD</span></div></div>`;
+        return scrambleRowCard(row);
+      }).join('')}
+    `).join('')}`;
+  }
   return `
     <div class="section-title" style="margin-top:14px">${esc(m.label)}</div>
     ${m.rows.map(row => {
       if (row.noCourse) return `<div class="paircard"><div class="phead"><span>${esc(row.teeTime || '')}</span><span>Course TBD</span></div></div>`;
-      if (m.format === 'scramble') return scrambleRowCard(row);
       return pairVsCard(row, m);
     }).join('')}`;
 }
