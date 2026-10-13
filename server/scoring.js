@@ -96,34 +96,45 @@ function sideBestBallNets(playerNetsList, holes) {
  *  - winner: 'A' | 'B' | 'T' (tie) | null (not final)
  */
 function matchPlayResult(sideANets, sideBNets, holes) {
-  let upA = 0;           // holes won by A minus holes won by B
+  let upA = 0;           // holes won by A minus holes won by B (live, unlocked)
   let through = 0;       // contiguous completed holes from segment start
   let contiguous = true;
+  // Locked result: once lead > remaining, the match is decided and the result freezes.
+  // Subsequent holes don't change the match outcome (but still count for thru, Stableford, Low Net).
+  let lockedUpA = null;
+  let lockedRemaining = null;
   for (const h of holes) {
     const a = sideANets.get(h), b = sideBNets.get(h);
     if (a == null || b == null) { contiguous = false; continue; }
     if (contiguous) through++;
-    if (a < b) upA++;
-    else if (b < a) upA--;
+    if (lockedUpA === null) {
+      if (a < b) upA++;
+      else if (b < a) upA--;
+      const remaining = holes.length - through;
+      if (Math.abs(upA) > remaining) {
+        lockedUpA = upA;
+        lockedRemaining = remaining;
+      }
+    }
   }
   const played = holes.filter(h => sideANets.get(h) != null && sideBNets.get(h) != null).length;
   const final = played === holes.length;
 
+  // Use locked margin if match was decided early; otherwise live margin.
+  const effUpA = lockedUpA !== null ? lockedUpA : upA;
   let status;
-  if (upA === 0) status = 'A/S';
-  else status = `${Math.abs(upA)} Up`;
+  if (effUpA === 0) status = 'A/S';
+  else status = `${Math.abs(effUpA)} Up`;
 
   let winner = null;
-  if (final) winner = upA > 0 ? 'A' : upA < 0 ? 'B' : 'T';
+  if (lockedUpA !== null) winner = lockedUpA > 0 ? 'A' : 'B';
+  else if (final) winner = upA > 0 ? 'A' : upA < 0 ? 'B' : 'T';
 
-  // Dormie / closed-out detection for live display (e.g. "3&1")
-  let closedOut = null;
-  if (!final && through > 0) {
-    const remaining = holes.length - through;
-    if (Math.abs(upA) > remaining) closedOut = Math.abs(upA) - remaining; // holes remaining when closed
-  }
+  // closedOut = holes remaining when the match was locked (for "X&Y" display).
+  // Null if not yet decided, or 0 if decided on the last hole (display as "X Up").
+  const closedOut = lockedRemaining;
 
-  return { status, through, final, winner, upA, closedOut, leader: upA > 0 ? 'A' : upA < 0 ? 'B' : null };
+  return { status, through, final, winner, upA: effUpA, closedOut, leader: effUpA > 0 ? 'A' : effUpA < 0 ? 'B' : null };
 }
 
 /** Match points for a final result: winner 10, tie 5–5, loser 0. */

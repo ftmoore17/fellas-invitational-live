@@ -360,10 +360,7 @@ function pairVsCard(ev, m) {
     const upMatch = status.match(/(\d+)\s*Up/i);
     if (upMatch) {
       const lead = parseInt(upMatch[1], 10);
-      const totalHoles = (ev.holes || []).length || 9;
-      const thru = ev.through || 0;
-      const remaining = totalHoles - thru;
-      if (lead > remaining && remaining >= 0) return `${leadName} ${lead}&${remaining}`;
+      if (ev.closedOut != null && ev.closedOut > 0) return `${leadName} ${lead}&${ev.closedOut}`;
     }
     return `${leadName} ${status}`;
   };
@@ -545,18 +542,16 @@ function renderScorecard() {
     const leadName = ev.leader === 'A' ? ev.colorA : ev.leader === 'B' ? ev.colorB : null;
     const leadColor = leadName ? teamHex(leadName) : '#8895a2';
     // Middle: "Yellow 1 Up", "Yellow 3&2", or "Tied"
-    // If lead > holes remaining, it's a closed-out win: "Team X&Y"
+    // Backend locks the result when lead > remaining: ev.closedOut = holes remaining at lock.
+    // If closedOut > 0, show "Team X&Y". If 0 or null (won on last hole), show "Team X Up".
     let marginText = 'Tied';
     if (leadName) {
       const status = ev.status && ev.status !== 'A/S' ? ev.status : '';
       const upMatch = status.match(/(\d+)\s*Up/i);
       if (upMatch) {
         const lead = parseInt(upMatch[1], 10);
-        const totalHoles = (ev.holes || []).length || 9;
-        const thru = ev.through || 0;
-        const remaining = totalHoles - thru;
-        if (lead > remaining && remaining >= 0) {
-          marginText = `${leadName} ${lead}&${remaining}`;
+        if (ev.closedOut != null && ev.closedOut > 0) {
+          marginText = `${leadName} ${lead}&${ev.closedOut}`;
         } else {
           marginText = `${leadName} ${status}`;
         }
