@@ -326,7 +326,22 @@ function scrambleRowCard(ev) {
 }
 
 function pairVsCard(ev, m) {
-  const statusLine = ev.final ? `Final · ${describeWinner(ev)}` : `${ev.status || ''}${ev.through != null ? ' · Thru ' + ev.through : ''}`;
+  // Status: "{Team} {Margin}" in team color on line 1, "Final"/"Thru X" on line 2
+  const leadName = ev.leader === 'A' ? ev.colorA : ev.leader === 'B' ? ev.colorB : null;
+  const leadColor = leadName ? teamHex(leadName) : '#8895a2';
+  let topLine, botLine;
+  if (ev.final) {
+    const margin = ev.status && ev.status !== 'A/S' ? ev.status : (ev.winner && ev.winner !== 'T' ? '1 Up' : '');
+    topLine = leadName && margin ? `${leadName} ${margin}` : (leadName ? `${leadName} wins` : 'Tied');
+    botLine = 'Final';
+  } else if (leadName && ev.status && ev.status !== 'A/S') {
+    topLine = `${leadName} ${ev.status}`;
+    botLine = ev.through != null ? `Thru ${ev.through}` : '';
+  } else {
+    topLine = 'Tied';
+    botLine = ev.through != null ? `Thru ${ev.through}` : '';
+  }
+  const statusHtml = `<div class="matchstatus"><div style="color:${leadColor};font-weight:800">${esc(topLine)}</div>${botLine ? `<div style="color:${leadColor};font-size:0.85em">${esc(botLine)}</div>` : ''}</div>`;
   const strip = (ev.holes || []).map(h => {
     const cls = h.winner === 'A' ? 'A' : h.winner === 'B' ? 'B' : h.winner === 'H' ? 'H' : '';
     return `<div class="holepip ${cls}">${h.hole}</div>`;
@@ -339,7 +354,7 @@ function pairVsCard(ev, m) {
   return `
     <div class="paircard">
       <div class="phead"><span>${esc(ev.teeTime || '')}</span><span>${esc(ev.courseLabel || '')}</span></div>
-      <div class="matchstatus">${esc(statusLine)}</div>
+      ${statusHtml}
       <div class="vs">
         ${side(ev.sideA, ev.colorA, '')}
         <div class="vsbadge">VS</div>
