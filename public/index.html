@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Fellas Invitational — Live Scoring</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <!-- Auth gate -->
+  <div id="auth-view" class="view"></div>
+
+  <!-- Main app -->
+  <div id="main-view" class="view hidden">
+    <header id="app-header">
+      <div class="eyebrow">The Fellas Invitational · Live Scoring</div>
+      <h1 id="tab-title">Leaderboard</h1>
+      <div id="user-chip"></div>
+    </header>
+    <main id="tab-content"></main>
+    <nav id="tab-bar">
+      <button data-tab="leaderboard" class="tab-btn active">
+        <span class="tab-icon">▦</span><span>Leaderboard</span>
+      </button>
+      <button data-tab="scoring" class="tab-btn">
+        <span class="tab-icon">✎</span><span>Scoring</span>
+      </button>
+      <button data-tab="boards" class="tab-btn">
+        <span class="tab-icon">🏆</span><span>Boards</span>
+      </button>
+      <button data-tab="schedule" class="tab-btn">
+        <span class="tab-icon">🗓</span><span>Schedule</span>
+      </button>
+      <button data-tab="admin" class="tab-btn">
+        <span class="tab-icon">⚙</span><span>Admin</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Confirm scores popup (explicit Trice exception to no-popups) -->
+  <div id="confirm-overlay" class="overlay hidden">
+    <div class="modal">
+      <h2>Confirm Scores</h2>
+      <div id="confirm-summary"></div>
+      <div class="modal-actions">
+        <button id="confirm-back" class="btn secondary">Back to Edit</button>
+        <button id="confirm-go" class="btn primary">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

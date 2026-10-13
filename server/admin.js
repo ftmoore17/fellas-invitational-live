@@ -1,0 +1,454 @@
+/**
+ * Admin API — full tournament control. All routes require the admin role.
+ *
+ *  POST /api/admin/login {username, password}
+ *  Tournaments: GET /api/admin/tournaments, POST, PUT /api/admin/tournaments/:id
+ *  Teams:       GET/POST /api/admin/teams, PUT/DELETE /api/admin/teams/:id
+ *  Players:     GET/POST /api/admin/players, PUT/DELETE /api/admin/players/:id,
+ *               POST /api/admin/players/:id/regenerate-pin
+ *  Courses:     GET/POST /api/admin/courses, PUT /api/admin/courses/:id
+ *  Matches:     GET /api/admin/matches, PUT /api/admin/matches/:id
+ *  Pairings:    POST /api/admin/pairings, PUT/DELETE /api/admin/pairings/:id
+ *  POST /api/admin/matches/:matchNo/generate-singles
+ *  POST /api/admin/matches/:matchNo/lock  {locked: true|false}
+ *  PUT  /api/admin/matches/3/scramble   {courses:[{course_id, points_scale, teams:[{team_id, tee_time}]}]}
+ *  PUT  /api/admin/tournaments/:id/prizes
+ *  POST /api/admin/change-password {current, next}
+ */
+'use strict';
+
+const express = require('express');
+const db = require('./db');
+const auth = require('./auth');
+const LB = require('./leaderboards');
+
+const router = express.Router();
+
+// Login is the one admin route that doesn't require an existing admin session.
+router.post('/login', async (req, res) => {
+  const { username, password } = req.body || {};
+  const admin = db.prepare(`SELECT * FROM admins WHERE username = ?`).get(username);
+  if (!admin || !(await auth.verifyPassword(password, admin.password_hash))) {
+    return res.status(401).json({ error: 'Invalid username or password' });
+  }
+  const t = db.prepare(`SELECT * FROM tournaments ORDER BY year DESC LIMIT 1`).get();
+  const token = auth.createSession({ role: 'admin', adminId: admin.id, tournamentId: t ? t.id : null });
+  auth.setSessionCookie(res, token);
+  res.json({ ok: true, role: 'admin', username: admin.username });
+});
+
+router.use(auth.requireAdmin);
+
+// Push a live update to all connected clients after any successful mutation,
+// so scoreboards/boards/schedules refresh everywhere in real time.
+router.use((req, res, next) => {
+  if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    const origJson = res.json.bind(res);
+    res.json = (body) => {
+      if (body && body.ok !== false) {
+        const broadcast = req.app.locals.broadcast;
+        if (broadcast) broadcast({ type: 'tournament_updated' });
+      }
+      return origJson(body);
+    };
+  }
+  next();
+});
+
+function currentTournament() {
+  return db.prepare(`SELECT * FROM tournaments ORDER BY year DESC LIMIT 1`).get();
+}
+
+const randomPin = () => String(Math.floor(1000 + Math.random() * 9000));
+
+// ------------------------------------------------------------ tournaments
+
+router.get('/tournaments', (req, res) => {
+  res.json(db.prepare(`SELECT * FROM tournaments ORDER BY year DESC`).all());
+});
+
+router.post('/tournaments', (req, res) => {
+  const { name, year, spectator_code, prize_settings } = req.body || {};
+  if (!name || !year) return res.status(400).json({ error: 'name and year required' });
+  const id = db.prepare(`
+    INSERT INTO tournaments (name, year, spectator_code, prize_settings)
+    VALUES (?, ?, ?, ?)
+  `).run(name, year, spectator_code || null, JSON.stringify(prize_settings || {})).lastInsertRowid;
+  res.json({ ok: true, id });
+});
+
+router.put('/tournaments/:id', (req, res) => {
+  const { name, status, spectator_code, prize_settings } = req.body || {};
+  const t = db.prepare(`SELECT * FROM tournaments WHERE id = ?`).get(req.params.id);
+  if (!t) return res.status(404).json({ error: 'Not found' });
+  db.prepare(`
+    UPDATE tournaments SET
+      name = COALESCE(?, name),
+      status = COALESCE(?, status),
+      spectator_code = COALESCE(?, spectator_code),
+      prize_settings = COALESCE(?, prize_settings)
+    WHERE id = ?
+  `).run(name ?? null, status ?? null, spectator_code ?? null,
+         prize_settings ? JSON.stringify(prize_settings) : null, t.id);
+  res.json({ ok: true });
+});
+
+router.put('/tournaments/:id/prizes', (req, res) => {
+  const t = db.prepare(`SELECT * FROM tournaments WHERE id = ?`).get(req.params.id);
+  if (!t) return res.status(404).json({ error: 'Not found' });
+  db.prepare(`UPDATE tournaments SET prize_settings = ? WHERE id = ?`)
+    .run(JSON.stringify(req.body || {}), t.id);
+  res.json({ ok: true });
+});
+
+// ------------------------------------------------------------------ teams
+
+router.get('/teams', (req, res) => {
+  const t = currentTournament();
+  res.json(db.prepare(`SELECT * FROM teams WHERE tournament_id = ? ORDER BY sort_order`).all(t.id));
+});
+
+router.post('/teams', (req, res) => {
+  const t = currentTournament();
+  const { color, sort_order } = req.body || {};
+  if (!color) return res.status(400).json({ error: 'color required' });
+  const id = db.prepare(`INSERT INTO teams (tournament_id, color, sort_order) VALUES (?, ?, ?)`)
+    .run(t.id, color, sort_order ?? 99).lastInsertRowid;
+  res.json({ ok: true, id });
+});
+
+router.put('/teams/:id', (req, res) => {
+  const { color, sort_order } = req.body || {};
+  db.prepare(`UPDATE teams SET color = COALESCE(?, color), sort_order = COALESCE(?, sort_order) WHERE id = ?`)
+    .run(color ?? null, sort_order ?? null, req.params.id);
+  res.json({ ok: true });
+});
+
+router.delete('/teams/:id', (req, res) => {
+  db.prepare(`DELETE FROM teams WHERE id = ?`).run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------- players
+
+router.get('/players', (req, res) => {
+  const t = currentTournament();
+  res.json(db.prepare(`
+    SELECT p.*, tm.color AS team_color FROM players p
+    LEFT JOIN teams tm ON tm.id = p.team_id
+    WHERE p.tournament_id = ? ORDER BY tm.sort_order, p.name
+  `).all(t.id));
+});
+
+router.post('/players', (req, res) => {
+  const t = currentTournament();
+  const { team_id, name, ghin_index, tier } = req.body || {};
+  if (!name) return res.status(400).json({ error: 'name required' });
+  const id = db.prepare(`
+    INSERT INTO players (tournament_id, team_id, name, ghin_index, tier, claim_pin)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(t.id, team_id || null, name, ghin_index ?? 0, tier || null, randomPin()).lastInsertRowid;
+  res.json({ ok: true, id });
+});
+
+router.put('/players/:id', (req, res) => {
+  const { team_id, name, ghin_index, tier } = req.body || {};
+  db.prepare(`
+    UPDATE players SET team_id = COALESCE(?, team_id), name = COALESCE(?, name),
+      ghin_index = COALESCE(?, ghin_index), tier = COALESCE(?, tier)
+    WHERE id = ?
+  `).run(team_id ?? null, name ?? null, ghin_index ?? null, tier ?? null, req.params.id);
+  res.json({ ok: true });
+});
+
+router.delete('/players/:id', (req, res) => {
+  db.prepare(`DELETE FROM players WHERE id = ?`).run(req.params.id);
+  res.json({ ok: true });
+});
+
+router.post('/players/:id/regenerate-pin', (req, res) => {
+  const pin = randomPin();
+  db.prepare(`UPDATE players SET claim_pin = ? WHERE id = ?`).run(pin, req.params.id);
+  res.json({ ok: true, claim_pin: pin });
+});
+
+// ----------------------------------------------------------------- courses
+
+router.get('/courses', (req, res) => {
+  const t = currentTournament();
+  res.json(db.prepare(`SELECT * FROM courses WHERE tournament_id = ? ORDER BY name`).all(t.id));
+});
+
+router.post('/courses', (req, res) => {
+  const t = currentTournament();
+  const c = req.body || {};
+  if (!c.name) return res.status(400).json({ error: 'name required' });
+  const id = db.prepare(`
+    INSERT INTO courses (tournament_id, name, black_rating, black_slope, black_par, black_yardage,
+                         white_rating, white_slope, white_par, white_yardage, holes_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(t.id, c.name, c.black_rating ?? null, c.black_slope ?? null, c.black_par ?? null,
+         c.black_yardage ?? null, c.white_rating ?? null, c.white_slope ?? null,
+         c.white_par ?? null, c.white_yardage ?? null, JSON.stringify(c.holes || []));
+  res.json({ ok: true, id });
+});
+
+router.put('/courses/:id', (req, res) => {
+  const c = req.body || {};
+  const cols = ['name', 'black_rating', 'black_slope', 'black_par', 'black_yardage',
+                'white_rating', 'white_slope', 'white_par', 'white_yardage'];
+  const sets = [], vals = [];
+  for (const col of cols) {
+    if (c[col] !== undefined) { sets.push(`${col} = ?`); vals.push(c[col]); }
+  }
+  if (c.holes !== undefined) { sets.push('holes_json = ?'); vals.push(JSON.stringify(c.holes)); }
+  if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+  vals.push(req.params.id);
+  db.prepare(`UPDATE courses SET ${sets.join(', ')} WHERE id = ?`).run(...vals);
+  res.json({ ok: true });
+});
+
+// ----------------------------------------------------------------- matches
+
+router.get('/matches', (req, res) => {
+  const t = currentTournament();
+  res.json(db.prepare(`SELECT * FROM matches WHERE tournament_id = ? ORDER BY match_no`).all(t.id));
+});
+
+router.put('/matches/:id', (req, res) => {
+  const { label, day, status, locked } = req.body || {};
+  const lockedVal = locked === undefined ? null : (locked ? 1 : 0); // SQLite: 0/1, not booleans
+  db.prepare(`
+    UPDATE matches SET label = COALESCE(?, label), day = COALESCE(?, day),
+      status = COALESCE(?, status), locked = COALESCE(?, locked)
+    WHERE id = ?
+  `).run(label ?? null, day ?? null, status ?? null, lockedVal, req.params.id);
+  res.json({ ok: true });
+});
+
+router.post('/matches/:matchNo/lock', (req, res) => {
+  const t = currentTournament();
+  const m = db.prepare(`SELECT * FROM matches WHERE tournament_id = ? AND match_no = ?`)
+    .get(t.id, Number(req.params.matchNo));
+  if (!m) return res.status(404).json({ error: 'Match not found' });
+  const locked = req.body && req.body.locked === false ? 0 : 1;
+  db.prepare(`UPDATE matches SET locked = ? WHERE id = ?`).run(locked, m.id);
+  res.json({ ok: true, locked: !!locked });
+});
+
+// ---------------------------------------------------------------- pairings
+
+router.post('/pairings', (req, res) => {
+  const { match_id, tee_time, course_id, course_label, unit_type, side_a_team_id, side_b_team_id, players } = req.body || {};
+  if (!match_id || !unit_type) return res.status(400).json({ error: 'match_id and unit_type required' });
+  const m = db.prepare(`SELECT * FROM matches WHERE id = ?`).get(match_id);
+  if (!m || m.locked) return res.status(403).json({ error: 'Match not found or locked' });
+  const pid = db.prepare(`
+    INSERT INTO pairings (match_id, tee_time, course_id, course_label, unit_type, side_a_team_id, side_b_team_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(match_id, tee_time || null, course_id || null, course_label || null, unit_type,
+         side_a_team_id || null, side_b_team_id || null).lastInsertRowid;
+  if (Array.isArray(players)) {
+    const ins = db.prepare(`INSERT INTO pairing_players (pairing_id, player_id, side) VALUES (?, ?, ?)`);
+    for (const p of players) ins.run(pid, p.player_id, p.side);
+  }
+  res.json({ ok: true, id: pid });
+});
+
+router.put('/pairings/:id', (req, res) => {
+  const p = db.prepare(`SELECT * FROM pairings WHERE id = ?`).get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  const m = db.prepare(`SELECT * FROM matches WHERE id = ?`).get(p.match_id);
+  const { tee_time, course_id, course_label, side_a_team_id, side_b_team_id, locked } = req.body || {};
+  if (m.locked) return res.status(403).json({ error: 'Match is locked' });
+  // A locked pairing only accepts an unlock — everything else needs it open.
+  if (p.locked && locked !== false) return res.status(403).json({ error: 'Pairing is locked' });
+  // SQLite has no boolean type — bind 0/1, not true/false.
+  const lockedVal = locked === undefined ? null : (locked ? 1 : 0);
+  db.prepare(`
+    UPDATE pairings SET tee_time = COALESCE(?, tee_time), course_id = COALESCE(?, course_id),
+      course_label = COALESCE(?, course_label),
+      side_a_team_id = COALESCE(?, side_a_team_id), side_b_team_id = COALESCE(?, side_b_team_id),
+      locked = COALESCE(?, locked)
+    WHERE id = ?
+  `).run(tee_time ?? null, course_id ?? null, course_label ?? null,
+         side_a_team_id ?? null, side_b_team_id ?? null, lockedVal, p.id);
+  res.json({ ok: true });
+});
+
+router.delete('/pairings/:id', (req, res) => {
+  const p = db.prepare(`SELECT * FROM pairings WHERE id = ?`).get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Not found' });
+  const m = db.prepare(`SELECT * FROM matches WHERE id = ?`).get(p.match_id);
+  if (m.locked || p.locked) return res.status(403).json({ error: 'Locked' });
+  db.prepare(`DELETE FROM pairings WHERE id = ?`).run(p.id);
+  res.json({ ok: true });
+});
+
+// ------------------------------------------------------- singles generation
+
+/**
+ * Generate Saturday singles (Matches 6 & 7) from current team standings.
+ * Per tier, players ordered by team standing; M6: 1v4 2v3 5v8 6v7 9v10 ...;
+ * M7: 1v2 3v4 5v6 7v8 9v10 ... (1-based ranks within tier).
+ * Foursomes: A+D share tee times, then B+C. Re-runnable until locked.
+ */
+function pairingFormulas(matchNo, count) {
+  // Returns array of [rankA, rankB] (1-based ranks within tier).
+  // M6: 1v4, 2v3, 5v8, 6v7, 9v10, ... (a leftover final pair just plays each other)
+  // M7: 1v2, 3v4, 5v6, 7v8, 9v10, ...
+  const pairs = [];
+  if (matchNo === 6) {
+    let r = 1;
+    while (r + 3 <= count) { pairs.push([r, r + 3], [r + 1, r + 2]); r += 4; }
+    if (r + 1 === count) pairs.push([r, r + 1]); // leftover pair, e.g. 9v10
+  } else {
+    for (let r = 1; r + 1 <= count; r += 2) pairs.push([r, r + 1]);
+  }
+  return pairs;
+}
+
+router.post('/matches/:matchNo/generate-singles', (req, res) => {
+  const t = currentTournament();
+  const matchNo = Number(req.params.matchNo);
+  if (matchNo !== 6 && matchNo !== 7) {
+    return res.status(400).json({ error: 'Singles generation is only for Matches 6 and 7' });
+  }
+  const m = db.prepare(`SELECT * FROM matches WHERE tournament_id = ? AND match_no = ?`).get(t.id, matchNo);
+  if (!m) return res.status(404).json({ error: 'Match not found' });
+  if (m.locked) return res.status(403).json({ error: 'Match is locked — unlock to regenerate' });
+
+  const board = LB.computeMasterLeaderboard(t.id);
+  const standingByTeam = new Map(board.teams.map(tm => [tm.teamId, tm.place])); // 1-based
+  const dye = db.prepare(`SELECT * FROM courses WHERE tournament_id = ? AND name = 'Dye'`).get(t.id);
+
+  const tiers = ['A', 'B', 'C', 'D'];
+  const playersByTier = {};
+  for (const tier of tiers) {
+    playersByTier[tier] = db.prepare(`
+      SELECT p.*, tm.id AS tid FROM players p JOIN teams tm ON tm.id = p.team_id
+      WHERE p.tournament_id = ? AND p.tier = ?
+    `).all(t.id, tier)
+      .sort((a, b) => (standingByTeam.get(a.tid) || 99) - (standingByTeam.get(b.tid) || 99));
+  }
+  const perTier = playersByTier.A.length;
+  if (!perTier || tiers.some(tr => playersByTier[tr].length !== perTier)) {
+    return res.status(400).json({ error: 'Tiers must have equal player counts to generate singles' });
+  }
+
+  const formulas = pairingFormulas(matchNo, perTier);
+
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM pairings WHERE match_id = ?`).run(m.id);
+    const insP = db.prepare(`
+      INSERT INTO pairings (match_id, tee_time, course_id, course_label, unit_type, side_a_team_id, side_b_team_id)
+      VALUES (?, ?, ?, 'Dye', 'single', ?, ?)
+    `);
+    const insPP = db.prepare(`INSERT INTO pairing_players (pairing_id, player_id, side) VALUES (?, ?, ?)`);
+    // Tee times: A+D foursomes first, then B+C. 9-minute intervals from 1:00 PM.
+    let slot = 0;
+    const teeTimeFor = (i) => {
+      const mins = 13 * 60 + i * 9;
+      const h = Math.floor(mins / 60), mm = mins % 60;
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h > 12 ? h - 12 : h;
+      return `${h12}:${String(mm).padStart(2, '0')} ${ampm}`;
+    };
+    for (const [tierX, tierY] of [['A', 'D'], ['B', 'C']]) {
+      for (const [ra, rb] of formulas) {
+        const tee = teeTimeFor(slot++);
+        for (const tier of [tierX, tierY]) {
+          const pa = playersByTier[tier][ra - 1], pb = playersByTier[tier][rb - 1];
+          const pid = insP.run(m.id, tee, dye ? dye.id : null, pa.tid, pb.tid).lastInsertRowid;
+          insPP.run(pid, pa.id, 'A');
+          insPP.run(pid, pb.id, 'B');
+        }
+      }
+    }
+  });
+  tx();
+
+  const count = db.prepare(`SELECT COUNT(*) AS n FROM pairings WHERE match_id = ?`).get(m.id).n;
+  res.json({ ok: true, pairings: count });
+});
+
+// ---------------------------------------------------------- scramble setup
+
+/**
+ * PUT /api/admin/matches/3/scramble
+ * { courses: [ { course_id, points_scale: [...], teams: [ {team_id, tee_time} ] } ] }
+ * Replaces scramble_courses rows and Match 3 pairings.
+ */
+router.put('/matches/3/scramble', (req, res) => {
+  const t = currentTournament();
+  const m = db.prepare(`SELECT * FROM matches WHERE tournament_id = ? AND match_no = 3`).get(t.id);
+  if (!m) return res.status(404).json({ error: 'Match 3 not found' });
+  if (m.locked) return res.status(403).json({ error: 'Match 3 is locked' });
+  const { courses } = req.body || {};
+  if (!Array.isArray(courses) || !courses.length) {
+    return res.status(400).json({ error: 'courses[] required' });
+  }
+
+  const tx = db.transaction(() => {
+    db.prepare(`DELETE FROM pairings WHERE match_id = ?`).run(m.id);
+    db.prepare(`DELETE FROM scramble_courses WHERE match_id = ?`).run(m.id);
+    const insP = db.prepare(`
+      INSERT INTO pairings (match_id, tee_time, course_id, course_label, unit_type, side_a_team_id)
+      VALUES (?, ?, ?, ?, 'team', ?)
+    `);
+    const insPP = db.prepare(`INSERT INTO pairing_players (pairing_id, player_id, side) VALUES (?, ?, 'A')`);
+    for (const c of courses) {
+      db.prepare(`INSERT INTO scramble_courses (match_id, course_id, points_scale) VALUES (?, ?, ?)`)
+        .run(m.id, c.course_id, JSON.stringify(c.points_scale || []));
+      const courseName = db.prepare(`SELECT name FROM courses WHERE id = ?`).get(c.course_id).name;
+      for (const tm of c.teams || []) {
+        const pid = insP.run(m.id, tm.tee_time || null, c.course_id, courseName, tm.team_id).lastInsertRowid;
+        for (const pl of db.prepare(`SELECT id FROM players WHERE team_id = ?`).all(tm.team_id)) {
+          insPP.run(pid, pl.id);
+        }
+      }
+    }
+  });
+  tx();
+  res.json({ ok: true });
+});
+
+// ------------------------------------------------------------ score export
+
+/**
+ * Admin score export — every player's individual gross and net scores
+ * broken down by course (Trice, 2026-10-13).
+ * GET /api/admin/scores/export      → JSON (powers the Admin section UI +
+ *                                      copy-to-clipboard in the frontend)
+ * GET /api/admin/scores/export.csv  → CSV download, one row per player/course
+ */
+router.get('/scores/export', (req, res) => {
+  const t = currentTournament();
+  res.json(LB.computeScoreExport(t.id));
+});
+
+router.get('/scores/export.csv', (req, res) => {
+  const t = currentTournament();
+  const csv = LB.scoreExportCSV(LB.computeScoreExport(t.id));
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="fellas-${t.year}-scores.csv"`);
+  res.send(csv);
+});
+
+// ------------------------------------------------------------ admin account
+
+router.post('/change-password', async (req, res) => {
+  const { current, next } = req.body || {};
+  if (!current || !next || next.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters' });
+  }
+  const admin = db.prepare(`SELECT * FROM admins WHERE id = ?`).get(req.session.admin_id);
+  if (!(await auth.verifyPassword(current, admin.password_hash))) {
+    return res.status(401).json({ error: 'Current password is wrong' });
+  }
+  db.prepare(`UPDATE admins SET password_hash = ? WHERE id = ?`)
+    .run(await auth.hashPassword(next), admin.id);
+  res.json({ ok: true });
+});
+
+module.exports = router;

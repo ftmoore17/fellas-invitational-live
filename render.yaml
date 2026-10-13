@@ -1,0 +1,21 @@
+# Render Blueprint for Fellas Invitational live scoring app.
+# Deploy via Render dashboard: New → Blueprint → connect the
+# fellas-invitational-live GitHub repo. The browser task must still set the
+# ADMIN_PASSWORD env var manually in the dashboard (see parent handoff).
+services:
+  - type: web
+    name: fellas-invitational-live
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: fellas-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # ADMIN_PASSWORD must be added manually in the Render dashboard
+      # (Environment tab) — see deploy handoff for the value.
