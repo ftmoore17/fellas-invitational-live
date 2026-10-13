@@ -569,7 +569,8 @@ function renderScorecard() {
             <span class="swatch" style="background:${teamHex(teamColor)}"></span>
             <div>
               <div class="pname">${esc(p.name)}<span class="strokes">${holeStrokes} STR</span></div>
-              ${isScr ? '' : `<div class="strokes-note">${esc(strokesNote)}${net != null ? ` · Net ${net}` : ''}</div>`}
+              ${isScr ? '' : `<div class="strokes-note">${esc(strokesNote)}</div>`}
+              ${!isScr && net != null ? `<div style="font-weight:800;font-size:1.1em;margin-top:2px">NET <span style="color:${teamHex(teamColor)}">${net}</span></div>` : ''}
             </div>
           </div>
           <div class="stepper">
