@@ -247,7 +247,7 @@ async function renderLeaderboard() {
       ${data.teams.map(t => `
         <tr>
           <td class="teamcell">
-            <span class="tname"><span class="swatch" style="background:${teamHex(t.color)}"></span><span class="place">${ordinal(t.place)}</span><span style="display:flex;flex-direction:column;line-height:1.25"><span style="color:${teamHex(t.color)};font-weight:700">${esc(t.color)}</span><span class="back" style="margin-left:0">${t.back === 0 ? 'Leader' : t.back + ' back'}</span></span></span>
+            <span class="tname"><span class="place">${ordinal(t.place)}</span><span style="display:flex;flex-direction:column;line-height:1.25"><span style="color:${teamHex(t.color)};font-weight:700">${esc(t.color)}</span><span class="back" style="margin-left:0">${t.back === 0 ? 'Leader' : t.back + ' back'}</span></span></span>
           </td>
           ${matchNos.map(n => {
             const c = t.matches[n];
