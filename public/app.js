@@ -292,9 +292,45 @@ async function renderLeaderboardPairs() {
   const n = state.lbMatch || 1;
   host.innerHTML = `<div class="card center tiny">Loading pairings…</div>`;
   try {
+    // For M6/M7: show placeholders until M5 is final (all scores entered)
+    if (n === 6 || n === 7) {
+      const m5 = await api(`/api/matches/5`).catch(() => null);
+      const m5Final = m5 && m5.rows && m5.rows.length > 0 && m5.rows.every(r => r.ev && r.ev.final);
+      if (!m5Final) {
+        host.innerHTML = matchPlaceholderCard(n);
+        return;
+      }
+    }
     const m = await api(`/api/matches/${n}`).catch(() => null);
     host.innerHTML = m ? matchPairCard(m) : `<div class="card center tiny">No pairings yet.</div>`;
   } catch { host.innerHTML = `<div class="card center tiny">Couldn't load pairings.</div>`; }
+}
+
+/* Placeholder cards for M6/M7 Match Center until M5 is final.
+   Looks like real pairing cards but with "1st Place A" etc. instead of names. */
+function matchPlaceholderCard(n) {
+  const isM6 = n === 6;
+  // M6: 1v4, 2v3 per tier; M7: 1v2, 3v4 per tier. Show example placeholders.
+  const examples = isM6
+    ? [['1st Place A', '4th Place A'], ['2nd Place A', '3rd Place A'], ['1st Place B', '4th Place B'], ['1st Place C', '4th Place C'], ['1st Place D', '4th Place D']]
+    : [['1st Place A', '2nd Place A'], ['3rd Place A', '4th Place A'], ['1st Place B', '2nd Place B'], ['1st Place C', '2nd Place C'], ['1st Place D', '2nd Place D']];
+  const label = isM6 ? 'MATCH 6 · SATURDAY PM SINGLES' : 'MATCH 7 · SATURDAY PM SINGLES';
+  const time = isM6 ? 'TBD' : 'Following front 9';
+  const course = isM6 ? 'Dye Front' : 'Dye Back';
+  return `
+    <div class="section-title">${label}</div>
+    <div class="sub" style="margin-bottom:12px">Pairings set after Match 5 · Seeded by standings</div>
+    ${examples.map(([a, b]) => `
+      <div class="paircard">
+        <div class="phead"><span>${time}</span><span>${course}</span></div>
+        <div class="matchstatus"><div style="color:#8895a2;font-weight:800;font-size:1.3em">TBD</div></div>
+        <div class="vs">
+          <div class="side"><div class="tlabel">${esc(a)}</div></div>
+          <div class="vsbadge">VS</div>
+          <div class="side right"><div class="tlabel">${esc(b)}</div></div>
+        </div>
+      </div>`).join('')}
+  `;
 }
 
 /* Pairing card used on the Leaderboard tab (Trice wants match cards here). */
@@ -849,19 +885,9 @@ async function renderSchedule() {
     }
     // M2/M5/M7: show "Following front 9" instead of TBD time.
     if ([2, 5, 7].includes(n)) {
-      let extra = '';
-      if (n === 7) extra = `<div style="margin-top:4px;font-size:0.9em">1st Place A <span style="color:var(--muted)">vs</span> 2nd Place A</div>`;
       return `<div class="paircard" style="padding:14px 16px">
         <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
-        <div style="margin-top:4px;color:var(--muted)">Following front 9 · Dye Back</div>${extra}
-      </div>`;
-    }
-    // M6: show placeholder in same format as real card (time · course + matchup)
-    if (n === 6 && teeTime === 'TBD') {
-      return `<div class="paircard" style="padding:14px 16px">
-        <div style="font-weight:800;font-size:1.1em">Match 6</div>
-        <div style="margin-top:4px">TBD · Dye Front</div>
-        <div style="margin-top:4px;font-size:0.9em">1st Place A <span style="color:var(--muted)">vs</span> 4th Place A</div>
+        <div style="margin-top:4px;color:var(--muted)">Following front 9</div>
       </div>`;
     }
     return `<div class="paircard" style="padding:14px 16px">
