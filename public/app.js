@@ -796,11 +796,16 @@ async function renderSchedule() {
       const p = (m.pairings || [])[0];
       if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseLabel || 'TBD'; }
     }
-    const followsNote = [2, 5, 7].includes(n) ? `<div class="tiny" style="margin-top:2px;color:var(--muted)">Following front 9</div>` : '';
+    // M2/M5/M7: show "Following front 9" instead of TBD time. M6: TBD only.
+    if ([2, 5, 7].includes(n)) {
+      return `<div class="paircard">
+        <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
+        <div style="margin-top:4px;color:var(--muted)">Following front 9</div>
+      </div>`;
+    }
     return `<div class="paircard">
       <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
       <div style="margin-top:4px">${esc(teeTime)} · ${esc(course)}</div>
-      ${followsNote}
     </div>`;
   };
 
