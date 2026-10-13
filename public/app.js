@@ -798,12 +798,12 @@ async function renderSchedule() {
     }
     // M2/M5/M7: show "Following front 9" instead of TBD time. M6: TBD only.
     if ([2, 5, 7].includes(n)) {
-      return `<div class="paircard">
+      return `<div class="paircard" style="padding:14px 16px">
         <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
         <div style="margin-top:4px;color:var(--muted)">Following front 9</div>
       </div>`;
     }
-    return `<div class="paircard">
+    return `<div class="paircard" style="padding:14px 16px">
       <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
       <div style="margin-top:4px">${esc(teeTime)} · ${esc(course)}</div>
     </div>`;
