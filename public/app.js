@@ -559,7 +559,7 @@ function renderScorecard() {
     const hcp = pl ? (pl.strokes || 0) : 0;
     const holeStrokes = strokesOnHole(hcp, cur.si);
     const net = curGross != null ? curGross - holeStrokes : null;
-    const strokesNote = `${hcp} total · ${holeStrokes} on this hole`;
+    const strokesNote = `${holeStrokes} on this hole`;
     // Team color: prefer player's own team, fall back to side A/B
     const teamColor = p.team || (sideAIds.has(p.id) ? ev.colorA : ev.colorB);
     return `
@@ -568,7 +568,7 @@ function renderScorecard() {
           <div style="display:flex;align-items:center;gap:8px">
             <span class="swatch" style="background:${teamHex(teamColor)}"></span>
             <div>
-              <div class="pname">${esc(p.name)}<span class="strokes">${holeStrokes} STR</span></div>
+              <div class="pname">${esc(p.name)}<span class="strokes">${hcp} STR</span></div>
               ${isScr ? '' : `<div class="strokes-note">${esc(strokesNote)}</div>`}
               ${!isScr && net != null ? `<div style="font-weight:800;font-size:1.1em;margin-top:2px">NET <span style="color:${teamHex(teamColor)}">${net}</span></div>` : ''}
             </div>
