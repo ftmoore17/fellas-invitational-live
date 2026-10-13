@@ -537,7 +537,6 @@ function renderScorecard() {
     const throughText = ev.final ? 'Final' : (ev.through ? `Thru ${ev.through}` : 'Not started');
     statusHtml = `
       <div class="score-status">
-        <div class="status-team" style="color:${leadColor}">${leadName ? esc(leadName) : 'Tied'}</div>
         <div class="status-margin" style="color:${leadColor}">${esc(marginText)}</div>
         <div class="status-through" style="color:#8895a2">${esc(throughText)}</div>
       </div>`;
