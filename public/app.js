@@ -346,11 +346,17 @@ function pairVsCard(ev, m) {
     const cls = h.winner === 'A' ? 'A' : h.winner === 'B' ? 'B' : h.winner === 'H' ? 'H' : '';
     return `<div class="holepip ${cls}">${h.hole}</div>`;
   }).join('');
-  const side = (s, color, align) => `
+  const side = (s, color, align) => {
+    const isRight = align === 'right';
+    const labelHtml = isRight
+      ? `<div class="tlabel right">${esc(color)}<span class="swatch" style="background:${teamHex(color)};margin-left:8px"></span></div>`
+      : `<div class="tlabel"><span class="swatch" style="background:${teamHex(color)};margin-right:8px"></span>${esc(color)}</div>`;
+    return `
     <div class="side ${align}">
-      <div class="tlabel"><span class="swatch" style="background:${teamHex(color)}"></span>${esc(color)}</div>
+      ${labelHtml}
       ${(s.players || []).map(p => `<div class="pname">${esc(p.name)}<span class="strokes">${p.strokes} STR</span></div>`).join('')}
     </div>`;
+  };
   return `
     <div class="paircard">
       <div class="phead"><span>${esc(ev.teeTime || '')}</span><span>${esc(ev.courseLabel || '')}</span></div>
