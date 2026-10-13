@@ -352,15 +352,30 @@ function scrambleRowCard(ev) {
 
 function pairVsCard(ev, m) {
   // Status: "{Team} {Margin}" in team color on line 1, "Final"/"Thru X" on line 2
+  // If lead > holes remaining, show "Team X&Y" (e.g., "Maroon 3&2")
   const leadName = ev.leader === 'A' ? ev.colorA : ev.leader === 'B' ? ev.colorB : null;
   const leadColor = leadName ? teamHex(leadName) : '#8895a2';
+  const fmtMargin = (status) => {
+    if (!leadName || !status || status === 'A/S') return leadName || 'Tied';
+    const upMatch = status.match(/(\d+)\s*Up/i);
+    if (upMatch) {
+      const lead = parseInt(upMatch[1], 10);
+      const totalHoles = (ev.holes || []).length || 9;
+      const thru = ev.through || 0;
+      const remaining = totalHoles - thru;
+      if (lead > remaining && remaining >= 0) return `${leadName} ${lead}&${remaining}`;
+    }
+    return `${leadName} ${status}`;
+  };
   let topLine, botLine;
   if (ev.final) {
     const margin = ev.status && ev.status !== 'A/S' ? ev.status : (ev.winner && ev.winner !== 'T' ? '1 Up' : '');
-    topLine = leadName && margin ? `${leadName} ${margin}` : (leadName ? `${leadName} wins` : 'Tied');
+    topLine = leadName && margin ? fmtMargin(margin) : (leadName ? `${leadName} wins` : 'Tied');
+    // If it was a closed-out win, fmtMargin already handles the & format
+    if (leadName && margin && !topLine.includes('&')) topLine = fmtMargin(margin);
     botLine = 'Final';
   } else if (leadName && ev.status && ev.status !== 'A/S') {
-    topLine = `${leadName} ${ev.status}`;
+    topLine = fmtMargin(ev.status);
     botLine = ev.through != null ? `Thru ${ev.through}` : '';
   } else {
     topLine = 'Tied';
@@ -529,11 +544,27 @@ function renderScorecard() {
   if (!isScr) {
     const leadName = ev.leader === 'A' ? ev.colorA : ev.leader === 'B' ? ev.colorB : null;
     const leadColor = leadName ? teamHex(leadName) : '#8895a2';
-    // Middle: "Yellow 1 Up", "Yellow 2&1", or "Tied"
+    // Middle: "Yellow 1 Up", "Yellow 3&2", or "Tied"
+    // If lead > holes remaining, it's a closed-out win: "Team X&Y"
     let marginText = 'Tied';
     if (leadName) {
-      const margin = ev.status && ev.status !== 'A/S' ? ev.status : '';
-      marginText = margin ? `${leadName} ${margin}` : leadName;
+      const status = ev.status && ev.status !== 'A/S' ? ev.status : '';
+      const upMatch = status.match(/(\d+)\s*Up/i);
+      if (upMatch) {
+        const lead = parseInt(upMatch[1], 10);
+        const totalHoles = (ev.holes || []).length || 9;
+        const thru = ev.through || 0;
+        const remaining = totalHoles - thru;
+        if (lead > remaining && remaining >= 0) {
+          marginText = `${leadName} ${lead}&${remaining}`;
+        } else {
+          marginText = `${leadName} ${status}`;
+        }
+      } else if (status) {
+        marginText = `${leadName} ${status}`;
+      } else {
+        marginText = leadName;
+      }
     }
     // Bottom: "Final" or "Thru X" (not both)
     const throughText = ev.final ? 'Final' : (ev.through ? `Thru ${ev.through}` : 'Not started');
