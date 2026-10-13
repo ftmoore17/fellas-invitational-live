@@ -559,7 +559,7 @@ function renderScorecard() {
     const hcp = pl ? (pl.strokes || 0) : 0;
     const holeStrokes = strokesOnHole(hcp, cur.si);
     const net = curGross != null ? curGross - holeStrokes : null;
-    const strokesNote = `${holeStrokes} stroke${holeStrokes === 1 ? '' : 's'} on this hole`;
+    const strokesNote = `${hcp} total · ${holeStrokes} on this hole`;
     // Team color: prefer player's own team, fall back to side A/B
     const teamColor = p.team || (sideAIds.has(p.id) ? ev.colorA : ev.colorB);
     return `
