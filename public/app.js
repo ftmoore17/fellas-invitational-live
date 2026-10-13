@@ -23,9 +23,9 @@ async function api(path, opts) {
 }
 
 const TEAM_HEX = {
-  Orange: '#f5820b', Green: '#22a355', Blue: '#3b82f6', Red: '#ef4444',
-  Purple: '#8b5cf6', Yellow: '#eab308', Navy: '#1e3a5f', Maroon: '#7f1d1d',
-  Teal: '#14b8a6', Coral: '#fb7185', Gray: '#6b7280', Black: '#111827',
+  Orange: '#e98732', Green: '#4e9b62', Blue: '#3f78bf', Red: '#ca4747',
+  Purple: '#815bb1', Yellow: '#e3bc39', Navy: '#234b75', Maroon: '#863c4b',
+  Teal: '#2a9b97', Coral: '#ee806e', Gray: '#8895a2', Black: '#101317',
 };
 const teamHex = (color) => TEAM_HEX[color] || '#64748b';
 
@@ -261,10 +261,19 @@ async function renderLeaderboard() {
       </tbody>
     </table></div>
     <div class="legend">MP = match points · SF = Stableford${prizeLegend()}</div>
-    <div class="section-title">Match Pairings</div>
+    <div class="section-title">Match Center</div>
+    <div class="pillrow" id="lb-matchpills">
+      ${matchNos.map(n => `<button class="mpill ${state.lbMatch === n ? 'active' : ''}" data-n="${n}">M${n}</button>`).join('')}
+    </div>
     <div id="lb-pairs"><div class="card center tiny">Loading pairings…</div></div>`;
 
   el.innerHTML = html;
+  $$('#lb-matchpills .mpill').forEach(b => b.onclick = () => {
+    state.lbMatch = Number(b.dataset.n);
+    $$('#lb-matchpills .mpill').forEach(x => x.classList.toggle('active', Number(x.dataset.n) === state.lbMatch));
+    renderLeaderboardPairs();
+  });
+  if (!state.lbMatch) state.lbMatch = 1;
   renderLeaderboardPairs();
 }
 
@@ -281,9 +290,11 @@ function prizeLegend() {
 async function renderLeaderboardPairs() {
   const host = $('#lb-pairs');
   if (!host) return;
+  const n = state.lbMatch || 1;
+  host.innerHTML = `<div class="card center tiny">Loading pairings…</div>`;
   try {
-    const cards = await Promise.all([1, 2, 3, 4, 5, 6, 7].map(n => api(`/api/matches/${n}`).catch(() => null)));
-    host.innerHTML = cards.filter(Boolean).map(matchPairCard).join('') || `<div class="card center tiny">No pairings yet.</div>`;
+    const m = await api(`/api/matches/${n}`).catch(() => null);
+    host.innerHTML = m ? matchPairCard(m) : `<div class="card center tiny">No pairings yet.</div>`;
   } catch { host.innerHTML = `<div class="card center tiny">Couldn't load pairings.</div>`; }
 }
 
@@ -322,7 +333,7 @@ function pairVsCard(ev, m) {
   }).join('');
   const side = (s, color, align) => `
     <div class="side ${align}">
-      <div class="tlabel">${esc(color)}</div>
+      <div class="tlabel"><span class="swatch" style="background:${teamHex(color)}"></span>${esc(color)}</div>
       ${(s.players || []).map(p => `<div class="pname">${esc(p.name)}<span class="strokes">${p.strokes} STR</span></div>`).join('')}
     </div>`;
   return `
@@ -464,15 +475,18 @@ function renderScorecard() {
   const cur = holes[s.holeIdx];
   const isScr = d.format === 'scramble';
 
-  // Status line.
+  // Status line — centered stack: leading team name, margin, through — all in team color (gray if tied).
   let statusHtml = '';
   if (!isScr) {
     const leadName = ev.leader === 'A' ? ev.colorA : ev.leader === 'B' ? ev.colorB : null;
-    const st = ev.final ? `Final · ${describeWinner(ev)}` : (ev.status || '');
+    const leadColor = leadName ? teamHex(leadName) : '#8895a2';
+    const marginText = ev.final ? `Final · ${describeWinner(ev)}` : (ev.status || 'A/S');
+    const throughText = ev.through ? `Through ${ev.through}` : 'Not started';
     statusHtml = `
       <div class="score-status">
-        <div class="lead" style="${leadName ? `color:${teamHex(leadName)}` : ''}">${esc(st)}</div>
-        <div class="detail">${ev.final ? '' : 'Through ' + (ev.through || 0)} · ${esc(d.match.label || '')}</div>
+        <div class="status-team" style="color:${leadColor}">${leadName ? esc(leadName) : 'Tied'}</div>
+        <div class="status-margin" style="color:${leadColor}">${esc(marginText)}</div>
+        <div class="status-through" style="color:${leadColor}">${esc(throughText)}</div>
       </div>`;
   } else {
     statusHtml = `
@@ -489,16 +503,26 @@ function renderScorecard() {
   }).join('');
 
   // Player cards for current hole.
+  // Per-hole strokes: floor(courseHcp/18) + (1 if stroke index <= courseHcp % 18).
+  const strokesOnHole = (hcp, si) => Math.floor(hcp / 18) + (si <= (hcp % 18) ? 1 : 0);
+  const sideAIds = new Set((ev.sideA.players || []).map(x => x.id));
   const cards = scoringPlayers().map(p => {
     const curGross = ((d.scores || {})[p.id] || {})[cur.hole];
     const pl = !isScr ? [...ev.sideA.players, ...ev.sideB.players].find(x => x.id === p.id) : null;
-    const strokesNote = pl && pl.strokes ? `${pl.strokes} stroke${pl.strokes === 1 ? '' : 's'} on this hole` : (pl ? '0 strokes on this hole' : '');
+    const hcp = pl ? (pl.strokes || 0) : 0;
+    const holeStrokes = strokesOnHole(hcp, cur.si);
+    const net = curGross != null ? curGross - holeStrokes : null;
+    const strokesNote = `${holeStrokes} stroke${holeStrokes === 1 ? '' : 's'} on this hole`;
+    const teamColor = sideAIds.has(p.id) ? ev.colorA : ev.colorB;
     return `
       <div class="scorer-card" data-pid="${p.id}">
         <div class="phead">
-          <div>
-            <div class="pname">${esc(p.name)}${pl ? `<span class="strokes">${pl.strokes} STR</span>` : ''}</div>
-            ${isScr ? '' : `<div class="strokes-note">${esc(strokesNote)}</div>`}
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="swatch" style="background:${teamHex(teamColor)}"></span>
+            <div>
+              <div class="pname">${esc(p.name)}<span class="strokes">${holeStrokes} STR</span></div>
+              ${isScr ? '' : `<div class="strokes-note">${esc(strokesNote)}${net != null ? ` · Net ${net}` : ''}</div>`}
+            </div>
           </div>
           <div class="stepper">
             <button data-act="dec">−</button>
@@ -609,8 +633,6 @@ async function renderBoards() {
     <div class="pillrow" id="board-tabs">
       <button class="mpill ${b.view === 'match' ? 'active' : ''}" data-v="match">Match Low Net</button>
       <button class="mpill ${b.view === 'weekend' ? 'active' : ''}" data-v="weekend">Weekend Low Net</button>
-      <button class="mpill ${b.view === 'front' ? 'active' : ''}" data-v="front">Front 9</button>
-      <button class="mpill ${b.view === 'back' ? 'active' : ''}" data-v="back">Back 9</button>
     </div>
     <div id="board-sub"></div>
     <div id="board-body"><div class="card center tiny">Loading…</div></div>`;
@@ -703,14 +725,28 @@ async function renderSchedule() {
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
 
   const isPlayer = state.me.role === 'player';
+  const matchDay = (n) => n <= 3 ? 'Friday' : 'Saturday';
   let html = '';
   if (isPlayer) {
-    const mine = [];
-    matches.forEach(m => (m.pairings || []).forEach(p => { if (p.own) mine.push({ m, p }); }));
-    if (mine.length) {
-      html += `<div class="section-title">Your Matches</div>`;
-      mine.forEach(({ m, p }) => { html += schedPairCard(m, p, true); });
-    }
+    // Your Matches: all 7 matches, grouped by day. M6/M7 show TBD until set.
+    const byNo = {};
+    matches.forEach(m => { byNo[m.matchNo] = m; });
+    const myCard = (n) => {
+      const m = byNo[n];
+      if (!m) return `<div class="paircard"><div class="phead"><span>Match ${n}</span><span>${matchDay(n)}</span></div><div class="tiny">TBD</div></div>`;
+      const p = (m.pairings || []).find(p => p.own);
+      if (!p) {
+        const tbdNote = n >= 6 ? 'Tee time, course, and matchup pending' : 'Pairing pending';
+        return `<div class="paircard"><div class="phead"><span>Match ${n}</span><span>${matchDay(n)}</span></div><div class="tiny">${tbdNote}</div></div>`;
+      }
+      return schedPairCard(m, p, true);
+    };
+    html += `<div class="section-title">Your Matches</div>`;
+    ['Friday', 'Saturday'].forEach(day => {
+      const nums = [1, 2, 3, 4, 5, 6, 7].filter(n => matchDay(n) === day);
+      html += `<div class="tiny" style="margin:8px 0 4px;font-weight:800">${day}</div>`;
+      nums.forEach(n => { html += myCard(n); });
+    });
   }
   ['Friday', 'Saturday'].forEach(day => {
     const dayMatches = matches.filter(m => m.day === day);
