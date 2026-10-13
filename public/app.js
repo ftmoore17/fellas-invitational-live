@@ -522,18 +522,24 @@ function renderScorecard() {
   const cur = holes[s.holeIdx];
   const isScr = d.format === 'scramble';
 
-  // Status line — centered stack: leading team name, margin, through — all in team color (gray if tied).
+  // Status line — centered stack: leading team name, margin, through/final — all in team color (gray if tied).
   let statusHtml = '';
   if (!isScr) {
     const leadName = ev.leader === 'A' ? ev.colorA : ev.leader === 'B' ? ev.colorB : null;
     const leadColor = leadName ? teamHex(leadName) : '#8895a2';
-    const marginText = ev.final ? `Final · ${describeWinner(ev)}` : (ev.status || 'A/S');
-    const throughText = ev.through ? `Through ${ev.through}` : 'Not started';
+    // Middle: "Yellow 1 Up", "Yellow 2&1", or "Tied"
+    let marginText = 'Tied';
+    if (leadName) {
+      const margin = ev.status && ev.status !== 'A/S' ? ev.status : '';
+      marginText = margin ? `${leadName} ${margin}` : leadName;
+    }
+    // Bottom: "Final" or "Thru X" (not both)
+    const throughText = ev.final ? 'Final' : (ev.through ? `Thru ${ev.through}` : 'Not started');
     statusHtml = `
       <div class="score-status">
         <div class="status-team" style="color:${leadColor}">${leadName ? esc(leadName) : 'Tied'}</div>
         <div class="status-margin" style="color:${leadColor}">${esc(marginText)}</div>
-        <div class="status-through" style="color:${leadColor}">${esc(throughText)}</div>
+        <div class="status-through" style="color:#8895a2">${esc(throughText)}</div>
       </div>`;
   } else {
     statusHtml = `
