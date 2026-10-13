@@ -294,18 +294,24 @@ router.delete('/pairings/:id', (req, res) => {
  * Foursomes: A+D share tee times, then B+C. Re-runnable until locked.
  */
 function pairingFormulas(matchNo, count) {
-  // Returns array of [rankA, rankB] (1-based ranks within tier).
-  // M6: 1v4, 2v3, 5v8, 6v7, 9v10, ... (a leftover final pair just plays each other)
-  // M7: 1v2, 3v4, 5v6, 7v8, 9v10, ...
+  // Returns array of [rankA, rankB] (1-based ranks within tier), in TEE TIME ORDER
+  // (lowest seeds first, highest last — last place tees off first).
+  // M6 (from Trice's spreadsheet): 9v10, 7v8, 5v6, 2v3, 1v4
+  // M7: 9v10, 7v8, 5v6, 3v4, 1v2 (lowest seeds first)
   const pairs = [];
   if (matchNo === 6) {
-    let r = 1;
-    while (r + 3 <= count) { pairs.push([r, r + 3], [r + 1, r + 2]); r += 4; }
-    if (r + 1 === count) pairs.push([r, r + 1]); // leftover pair, e.g. 9v10
+    // Top 4 cross: 1v4, 2v3; rest consecutive: 5v6, 7v8, 9v10...
+    // Return in reverse (tee time) order: 9v10 first, 1v4 last.
+    const top = [[1, 4], [2, 3]];
+    const rest = [];
+    for (let r = 5; r + 1 <= count; r += 2) rest.push([r, r + 1]);
+    // rest is [5,6], [7,8], [9,10] — reverse for tee order, then top reversed
+    return [...rest.reverse(), ...top.reverse()];
   } else {
+    // M7: 1v2, 3v4, 5v6... reversed for tee order
     for (let r = 1; r + 1 <= count; r += 2) pairs.push([r, r + 1]);
+    return pairs.reverse();
   }
-  return pairs;
 }
 
 router.post('/matches/:matchNo/generate-singles', (req, res) => {
@@ -345,10 +351,10 @@ router.post('/matches/:matchNo/generate-singles', (req, res) => {
       VALUES (?, ?, ?, 'Dye', 'single', ?, ?)
     `);
     const insPP = db.prepare(`INSERT INTO pairing_players (pairing_id, player_id, side) VALUES (?, ?, ?)`);
-    // Tee times: A+D foursomes first, then B+C. 9-minute intervals from 1:00 PM.
+    // Tee times: A+D foursomes first, then B+C. 9-minute intervals from 1:53 PM (per Trice's sheet).
     let slot = 0;
     const teeTimeFor = (i) => {
-      const mins = 13 * 60 + i * 9;
+      const mins = 13 * 60 + 53 + i * 9;
       const h = Math.floor(mins / 60), mm = mins % 60;
       const ampm = h >= 12 ? 'PM' : 'AM';
       const h12 = h > 12 ? h - 12 : h;
