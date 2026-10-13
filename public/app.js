@@ -738,8 +738,7 @@ async function renderWeekendBoard() {
   let data;
   try { data = await api(`/api/boards/weekend${tier}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  let html = `<div class="card"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2>
-    <div class="sub">Individual · M1,2,4,5,6,7 (scramble excluded) · sorted by to par</div></div>`;
+  let html = `<div class="card"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2></div>`;
   html += `<table class="rows"><thead><tr><th></th><th>Player</th><th class="num">Net</th><th class="num">To Par</th></tr></thead><tbody>`;
   data.rows.forEach((r, i) => {
     html += `<tr><td class="rank">${i + 1}</td>
