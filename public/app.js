@@ -567,14 +567,14 @@ function renderScorecard() {
     // Team color: prefer player's own team, fall back to side A/B
     const teamColor = p.team || (sideAIds.has(p.id) ? ev.colorA : ev.colorB);
     return `
-      <div class="scorer-card" data-pid="${p.id}">
+      <div class="scorer-card" data-pid="${p.id}" data-hs="${holeStrokes}">
         <div class="phead">
           <div style="display:flex;align-items:center;gap:8px">
             <span class="swatch" style="background:${teamHex(teamColor)}"></span>
             <div>
               <div class="pname">${esc(p.name)}<span class="strokes">${hcp} STR</span></div>
               ${isScr ? '' : `<div class="strokes-note">${esc(strokesNote)}</div>`}
-              ${!isScr && net != null ? `<div style="font-weight:800;font-size:1.1em;margin-top:2px">NET <span style="color:${teamHex(teamColor)}">${net}</span></div>` : ''}
+              ${!isScr ? `<div class="netline" style="font-weight:800;font-size:1.1em;margin-top:2px;${net == null ? 'display:none' : ''}">NET <span class="netval" style="color:${teamHex(teamColor)}">${net == null ? '' : net}</span></div>` : ''}
             </div>
           </div>
           <div class="stepper">
@@ -610,10 +610,20 @@ function renderScorecard() {
   if (!s.pending) s.pending = {};
   $$('#score-body .scorer-card').forEach(card => {
     const pid = Number(card.dataset.pid);
+    const hs = Number(card.dataset.hs || 0);
     const valEl = $('.val', card);
+    const netEl = $('.netline', card);
+    const netValEl = $('.netval', card);
     let v = ((d.scores || {})[pid] || {})[cur.hole];
     if (s.pending[`${pid}:${cur.hole}`] !== undefined) v = s.pending[`${pid}:${cur.hole}`];
-    const paint = () => { valEl.textContent = v == null ? '–' : v; };
+    const paint = () => {
+      valEl.textContent = v == null ? '–' : v;
+      if (netEl && netValEl) {
+        const n = v == null ? null : v - hs;
+        if (n == null) { netEl.style.display = 'none'; }
+        else { netEl.style.display = ''; netValEl.textContent = n; }
+      }
+    };
     paint();
     $('[data-act="dec"]', card).onclick = () => { v = v == null ? cur.par : Math.max(1, v - 1); s.pending[`${pid}:${cur.hole}`] = v; paint(); };
     $('[data-act="inc"]', card).onclick = () => { v = v == null ? cur.par : Math.min(20, v + 1); s.pending[`${pid}:${cur.hole}`] = v; paint(); };
