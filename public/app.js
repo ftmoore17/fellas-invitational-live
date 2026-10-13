@@ -247,7 +247,7 @@ async function renderLeaderboard() {
       ${data.teams.map(t => `
         <tr>
           <td class="teamcell">
-            <span class="tname"><span class="swatch" style="background:${teamHex(t.color)}"></span><span class="place">${ordinal(t.place)}</span> ${esc(t.color)}</span>
+            <span class="tname"><span class="swatch" style="background:${teamHex(t.color)}"></span><span class="place">${ordinal(t.place)}</span> <span style="color:${teamHex(t.color)};font-weight:700">${esc(t.color)}</span></span>
             <span class="back">${t.back === 0 ? 'Leader' : t.back + ' back'}</span>
           </td>
           ${matchNos.map(n => {
