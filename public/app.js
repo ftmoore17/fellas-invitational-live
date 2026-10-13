@@ -779,42 +779,34 @@ async function renderSchedule() {
 
   const isPlayer = state.me.role === 'player';
   const matchDay = (n) => n <= 3 ? 'Friday' : 'Saturday';
-  let html = '';
-  if (isPlayer) {
-    // Your Matches: all 7 matches, grouped by day. M6/M7 show TBD until set.
-    const byNo = {};
-    matches.forEach(m => { byNo[m.matchNo] = m; });
-    const myCard = (n) => {
-      const m = byNo[n];
-      if (!m) return `<div class="paircard"><div class="phead"><span>Match ${n}</span><span>${matchDay(n)}</span></div><div class="tiny">TBD</div></div>`;
+  const byNo = {};
+  matches.forEach(m => { byNo[m.matchNo] = m; });
+
+  // Simple card: Match #, tee time, course. Equal sizes, clean.
+  const simpleCard = (n) => {
+    const m = byNo[n];
+    if (!m) return `<div class="paircard"><div style="font-weight:800">Match ${n}</div><div class="tiny">TBD</div></div>`;
+    let teeTime = 'TBD', course = 'TBD';
+    if (isPlayer) {
       const p = (m.pairings || []).find(p => p.own);
-      if (!p) {
-        const tbdNote = n >= 6 ? 'Tee time, course, and matchup pending' : 'Pairing pending';
-        return `<div class="paircard"><div class="phead"><span>Match ${n}</span><span>${matchDay(n)}</span></div><div class="tiny">${tbdNote}</div></div>`;
-      }
-      return schedPairCard(m, p, true);
-    };
-    html += `<div class="section-title">Your Matches</div>`;
-    ['Friday', 'Saturday'].forEach(day => {
-      const nums = [1, 2, 3, 4, 5, 6, 7].filter(n => matchDay(n) === day);
-      html += `<div class="tiny" style="margin:8px 0 4px;font-weight:800">${day}</div>`;
-      nums.forEach(n => { html += myCard(n); });
-    });
-  }
+      if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseName || p.course || 'TBD'; }
+      else if (n >= 6) { teeTime = 'TBD'; course = 'TBD'; }
+    } else {
+      // For spectators/admin: show first pairing as representative, or TBD
+      const p = (m.pairings || [])[0];
+      if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseName || p.course || 'TBD'; }
+    }
+    return `<div class="paircard">
+      <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
+      <div style="margin-top:4px">${esc(teeTime)} · ${esc(course)}</div>
+    </div>`;
+  };
+
+  let html = '';
   ['Friday', 'Saturday'].forEach(day => {
-    const dayMatches = matches.filter(m => m.day === day);
-    if (!dayMatches.length) return;
-    html += `<div class="section-title">${day}</div>`;
-    dayMatches.forEach(m => {
-      html += `<div class="card"><h2>Match ${m.matchNo} · ${esc(m.label.replace(/^Match \d+ · /, ''))}</h2>
-        <div class="sub">${esc(m.format)} · ${m.tbd ? 'TBD' : ''}</div>`;
-      if (!m.pairings || !m.pairings.length) {
-        html += `<div class="tiny">Pairings TBD.</div>`;
-      } else {
-        html += m.pairings.map(p => schedPairCard(m, p, false)).join('');
-      }
-      html += `</div>`;
-    });
+    const nums = [1, 2, 3, 4, 5, 6, 7].filter(n => matchDay(n) === day);
+    html += `<div class="section-title" style="font-size:1.3em;font-weight:800;margin-top:16px">${day}</div>`;
+    nums.forEach(n => { html += simpleCard(n); });
   });
   el.innerHTML = html || `<div class="card center tiny">No schedule yet.</div>`;
 }
