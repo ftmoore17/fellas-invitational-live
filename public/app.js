@@ -789,12 +789,12 @@ async function renderSchedule() {
     let teeTime = 'TBD', course = 'TBD';
     if (isPlayer) {
       const p = (m.pairings || []).find(p => p.own);
-      if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseName || p.course || 'TBD'; }
+      if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseLabel || 'TBD'; }
       else if (n >= 6) { teeTime = 'TBD'; course = 'TBD'; }
     } else {
       // For spectators/admin: show first pairing as representative, or TBD
       const p = (m.pairings || [])[0];
-      if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseName || p.course || 'TBD'; }
+      if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseLabel || 'TBD'; }
     }
     const followsNote = [2, 5, 7].includes(n) ? `<div class="tiny" style="margin-top:2px;color:var(--muted)">Following front 9</div>` : '';
     return `<div class="paircard">
