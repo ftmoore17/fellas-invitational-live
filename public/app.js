@@ -307,27 +307,47 @@ async function renderLeaderboardPairs() {
 }
 
 /* Placeholder cards for M6/M7 Match Center until M5 is final.
-   Looks like real pairing cards but with "1st Place A" etc. instead of names. */
+   Uses exact tee times and seeding matchups from Trice's spreadsheet. */
 function matchPlaceholderCard(n) {
   const isM6 = n === 6;
-  // M6: 1v4, 2v3 per tier; M7: 1v2, 3v4 per tier. Show example placeholders.
-  const examples = isM6
-    ? [['1st Place A', '4th Place A'], ['2nd Place A', '3rd Place A'], ['1st Place B', '4th Place B'], ['1st Place C', '4th Place C'], ['1st Place D', '4th Place D']]
-    : [['1st Place A', '2nd Place A'], ['3rd Place A', '4th Place A'], ['1st Place B', '2nd Place B'], ['1st Place C', '2nd Place C'], ['1st Place D', '2nd Place D']];
   const label = isM6 ? 'MATCH 6 · SATURDAY PM SINGLES' : 'MATCH 7 · SATURDAY PM SINGLES';
-  const time = isM6 ? 'TBD' : 'Following front 9';
   const course = isM6 ? 'Dye Front' : 'Dye Back';
+  // [time, [playerA1, playerB1], [playerA2, playerB2]] — two singles matches per tee time
+  const m6Slots = [
+    ['1:53 PM', ['9th Place A', '10th Place A'], ['9th Place D', '10th Place D']],
+    ['2:02 PM', ['7th Place A', '8th Place A'], ['7th Place D', '8th Place D']],
+    ['2:11 PM', ['5th Place A', '6th Place A'], ['5th Place D', '6th Place D']],
+    ['2:20 PM', ['9th Place B', '10th Place B'], ['9th Place C', '10th Place C']],
+    ['2:29 PM', ['7th Place B', '8th Place B'], ['7th Place C', '8th Place C']],
+    ['2:38 PM', ['5th Place B', '6th Place B'], ['5th Place C', '6th Place C']],
+    ['2:47 PM', ['2nd Place A', '3rd Place A'], ['2nd Place D', '3rd Place D']],
+    ['2:56 PM', ['1st Place A', '4th Place A'], ['1st Place D', '4th Place D']],
+    ['3:05 PM', ['2nd Place B', '3rd Place B'], ['2nd Place C', '3rd Place C']],
+    ['3:14 PM', ['1st Place B', '4th Place B'], ['1st Place C', '4th Place C']],
+  ];
+  const m7Slots = [
+    ['1:53 PM', ['9th Place A', '8th Place A'], ['9th Place D', '8th Place D']],
+    ['2:02 PM', ['5th Place A', '10th Place A'], ['5th Place D', '10th Place D']],
+    ['2:11 PM', ['6th Place A', '7th Place A'], ['6th Place D', '7th Place D']],
+    ['2:20 PM', ['9th Place B', '8th Place B'], ['9th Place C', '8th Place C']],
+    ['2:29 PM', ['5th Place B', '10th Place B'], ['5th Place C', '10th Place C']],
+    ['2:38 PM', ['6th Place B', '7th Place B'], ['6th Place C', '7th Place C']],
+    ['2:47 PM', ['4th Place A', '3rd Place A'], ['4th Place D', '3rd Place D']],
+    ['2:56 PM', ['1st Place A', '2nd Place A'], ['1st Place D', '2nd Place D']],
+    ['3:05 PM', ['4th Place B', '3rd Place B'], ['4th Place C', '3rd Place C']],
+    ['3:14 PM', ['1st Place B', '2nd Place B'], ['1st Place C', '2nd Place C']],
+  ];
+  const slots = isM6 ? m6Slots : m7Slots;
   return `
     <div class="section-title">${label}</div>
     <div class="sub" style="margin-bottom:12px">Pairings set after Match 5 · Seeded by standings</div>
-    ${examples.map(([a, b]) => `
+    ${slots.map(([time, [a1, b1], [a2, b2]]) => `
       <div class="paircard">
         <div class="phead"><span>${time}</span><span>${course}</span></div>
-        <div class="matchstatus"><div style="color:#8895a2;font-weight:800;font-size:1.3em">TBD</div></div>
+        <div class="matchstatus"><div style="color:#8895a2;font-weight:800;font-size:1.1em">TBD</div></div>
         <div class="vs">
-          <div class="side"><div class="tlabel">${esc(a)}</div></div>
-          <div class="vsbadge">VS</div>
-          <div class="side right"><div class="tlabel">${esc(b)}</div></div>
+          <div class="side"><div class="tlabel" style="font-size:0.95em">${esc(a1)}</div><div class="vsbadge" style="margin:4px 0">VS</div><div class="tlabel" style="font-size:0.95em">${esc(b1)}</div></div>
+          <div class="side right"><div class="tlabel" style="font-size:0.95em">${esc(a2)}</div><div class="vsbadge" style="margin:4px 0">VS</div><div class="tlabel" style="font-size:0.95em">${esc(b2)}</div></div>
         </div>
       </div>`).join('')}
   `;
