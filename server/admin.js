@@ -451,4 +451,13 @@ router.post('/change-password', async (req, res) => {
   res.json({ ok: true });
 });
 
+// ------------------------------------------------------------ TEMPORARY: clear all scores (remove after use)
+router.post('/clear-all-scores', (req, res) => {
+  db.prepare(`DELETE FROM hole_scores`).run();
+  db.prepare(`DELETE FROM scramble_scores`).run();
+  const h = db.prepare(`SELECT COUNT(*) AS c FROM hole_scores`).get().c;
+  const s = db.prepare(`SELECT COUNT(*) AS c FROM scramble_scores`).get().c;
+  res.json({ ok: true, hole_scores: h, scramble_scores: s });
+});
+
 module.exports = router;
