@@ -139,6 +139,8 @@ function evaluatePairing(pairing, match, course) {
     winner: mp.winner, leader: mp.leader, closedOut: mp.closedOut,
     mpA, mpB, sfA, sfB,
     sideA, sideB,
+    colorA: db.prepare('SELECT color FROM teams WHERE id = ?').get(pairing.side_a_team_id)?.color,
+    colorB: db.prepare('SELECT color FROM teams WHERE id = ?').get(pairing.side_b_team_id)?.color,
     holes: holeResults,
   };
 }
