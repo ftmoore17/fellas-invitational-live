@@ -861,6 +861,10 @@ async function renderSchedule() {
   };
 
   let html = '';
+  // Personalized header: "Trice's Tee Times" for players, "Tee Times" for others
+  const userName = state.me && state.me.name ? state.me.name.split(' ')[0] : null;
+  const headerTitle = userName ? `${userName}'s Tee Times` : 'Tee Times';
+  html += `<div style="font-size:1.5em;font-weight:800;margin-bottom:8px">${esc(headerTitle)}</div>`;
   ['Friday', 'Saturday'].forEach(day => {
     const nums = [1, 2, 3, 4, 5, 6, 7].filter(n => matchDay(n) === day);
     html += `<div class="section-title" style="font-size:1.3em;font-weight:800;margin-top:16px">${day}</div>`;
