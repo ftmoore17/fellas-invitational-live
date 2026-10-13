@@ -368,8 +368,11 @@ function pairVsCard(ev, m) {
   }
   const statusHtml = `<div class="matchstatus"><div style="color:${leadColor};font-weight:800;font-size:1.3em">${esc(topLine)}</div>${botLine ? `<div style="color:#8895a2;font-size:1.1em;font-weight:700">${esc(botLine)}</div>` : ''}</div>`;
   const strip = (ev.holes || []).map(h => {
-    const cls = h.winner === 'A' ? 'A' : h.winner === 'B' ? 'B' : h.winner === 'H' ? 'H' : '';
-    return `<div class="holepip ${cls}">${h.hole}</div>`;
+    let bg = '#eef2f7', color = 'var(--muted)';
+    if (h.winner === 'A' && ev.colorA) { bg = teamHex(ev.colorA); color = '#fff'; }
+    else if (h.winner === 'B' && ev.colorB) { bg = teamHex(ev.colorB); color = '#fff'; }
+    else if (h.winner === 'H') { bg = '#cbd5e1'; color = '#475569'; }
+    return `<div class="holepip" style="background:${bg};color:${color}">${h.hole}</div>`;
   }).join('');
   const side = (s, color, align) => {
     const isRight = align === 'right';
@@ -548,9 +551,22 @@ function renderScorecard() {
   }
 
   // Hole selector (bounded by match segment — stops at 9 for 9-hole matches).
+  // Color each hole by the winning team's color.
   const holeBtns = holes.map((h, i) => {
     const scored = scoringPlayers().some(p => ((s.detail.scores || {})[p.id] || {})[h.hole] != null);
-    return `<button class="hbtn ${i === s.holeIdx ? 'active' : ''} ${scored ? 'scored' : ''}" data-i="${i}">${h.hole}</button>`;
+    const isActive = i === s.holeIdx;
+    let style = '';
+    if (!isScr) {
+      const hr = (ev.holes || []).find(x => x.hole === h.hole);
+      if (hr) {
+        if (hr.winner === 'A' && ev.colorA) style = `background:${teamHex(ev.colorA)};color:#fff;border-color:${teamHex(ev.colorA)};`;
+        else if (hr.winner === 'B' && ev.colorB) style = `background:${teamHex(ev.colorB)};color:#fff;border-color:${teamHex(ev.colorB)};`;
+        else if (hr.winner === 'H') style = `background:#cbd5e1;color:#475569;border-color:#cbd5e1;`;
+      }
+    }
+    // Active hole gets a ring to stand out, even with winner color
+    if (isActive) style += 'box-shadow:0 0 0 2px #fff,0 0 0 4px var(--navy-800);';
+    return `<button class="hbtn ${isActive ? 'active' : ''} ${scored ? 'scored' : ''}" data-i="${i}" style="${style}">${h.hole}</button>`;
   }).join('');
 
   // Player cards for current hole.
