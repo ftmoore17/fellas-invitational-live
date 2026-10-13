@@ -338,16 +338,23 @@ function matchPlaceholderCard(n) {
     ['3:14 PM', ['1st Place B', '2nd Place B'], ['1st Place C', '2nd Place C']],
   ];
   const slots = isM6 ? m6Slots : m7Slots;
+  // Each singles match gets its own card (two cards per tee time)
+  const cards = [];
+  slots.forEach(([time, [a1, b1], [a2, b2]]) => {
+    cards.push({ time, a: a1, b: b1 });
+    cards.push({ time, a: a2, b: b2 });
+  });
   return `
     <div class="section-title">${label}</div>
     <div class="sub" style="margin-bottom:12px">Pairings set after Match 5 · Seeded by standings</div>
-    ${slots.map(([time, [a1, b1], [a2, b2]]) => `
+    ${cards.map(({ time, a, b }) => `
       <div class="paircard">
         <div class="phead"><span>${time}</span><span>${course}</span></div>
         <div class="matchstatus"><div style="color:#8895a2;font-weight:800;font-size:1.1em">TBD</div></div>
         <div class="vs">
-          <div class="side"><div class="tlabel" style="font-size:0.95em">${esc(a1)}</div><div class="vsbadge" style="margin:4px 0">VS</div><div class="tlabel" style="font-size:0.95em">${esc(b1)}</div></div>
-          <div class="side right"><div class="tlabel" style="font-size:0.95em">${esc(a2)}</div><div class="vsbadge" style="margin:4px 0">VS</div><div class="tlabel" style="font-size:0.95em">${esc(b2)}</div></div>
+          <div class="side"><div class="tlabel" style="font-size:0.95em">${esc(a)}</div></div>
+          <div class="vsbadge">VS</div>
+          <div class="side right"><div class="tlabel" style="font-size:0.95em">${esc(b)}</div></div>
         </div>
       </div>`).join('')}
   `;
