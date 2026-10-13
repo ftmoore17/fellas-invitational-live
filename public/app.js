@@ -942,3 +942,6 @@ async function adminSetup() {
     } catch (e) { alert(e.message); }
   };
 }
+
+// Start the app
+boot();
