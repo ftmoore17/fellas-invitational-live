@@ -451,7 +451,7 @@ router.post('/change-password', async (req, res) => {
   res.json({ ok: true });
 });
 
-// ------------------------------------------------------------ TEMPORARY: clear all scores (remove after use)
+// Clear all scores (Admin Danger Zone — double-confirm in UI)
 router.post('/clear-all-scores', (req, res) => {
   db.prepare(`DELETE FROM hole_scores`).run();
   db.prepare(`DELETE FROM scramble_scores`).run();

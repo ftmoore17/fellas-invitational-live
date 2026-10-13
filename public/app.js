@@ -1095,6 +1095,46 @@ async function adminSetup() {
       const ok = $('#sok'); ok.textContent = 'Password changed ✓'; ok.classList.remove('hidden');
     } catch (e) { alert(e.message); }
   };
+  // Danger Zone: Clear all scores (double confirmation required)
+  const dz = document.createElement('div');
+  dz.className = 'card';
+  dz.style.marginTop = '16px';
+  dz.style.borderColor = '#ca4747';
+  dz.innerHTML = `
+    <h2 style="color:#ca4747">Danger Zone</h2>
+    <div class="sub">Wipe all entered scores and reset the tournament to a pre-start state. This cannot be undone.</div>
+    <button class="btn block" id="clearscores" style="background:#ca4747;color:#fff">Clear All Scores</button>
+    <div class="okmsg hidden" id="clearmsg"></div>`;
+  el.appendChild(dz);
+  let armed = false;
+  $('#clearscores').onclick = async () => {
+    const btn = $('#clearscores');
+    const msg = $('#clearmsg');
+    if (!armed) {
+      armed = true;
+      btn.textContent = 'Are you sure? Tap again to wipe all scores';
+      btn.style.background = '#863c4b';
+      setTimeout(() => { armed = false; btn.textContent = 'Clear All Scores'; btn.style.background = '#ca4747'; }, 10000);
+      return;
+    }
+    armed = false;
+    btn.textContent = 'Clearing…';
+    btn.disabled = true;
+    try {
+      const r = await api('/api/admin/clear-all-scores', { method: 'POST' });
+      msg.textContent = `All scores cleared ✓ (${r.hole_scores + r.scramble_scores} entries removed)`;
+      msg.classList.remove('hidden');
+      btn.textContent = 'Clear All Scores';
+      btn.style.background = '#ca4747';
+      btn.disabled = false;
+    } catch (e) {
+      msg.textContent = 'Error: ' + e.message;
+      msg.classList.remove('hidden');
+      btn.textContent = 'Clear All Scores';
+      btn.style.background = '#ca4747';
+      btn.disabled = false;
+    }
+  };
 }
 
 // Start the app
