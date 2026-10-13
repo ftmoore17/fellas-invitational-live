@@ -796,9 +796,11 @@ async function renderSchedule() {
       const p = (m.pairings || [])[0];
       if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseName || p.course || 'TBD'; }
     }
+    const followsNote = [2, 5, 7].includes(n) ? `<div class="tiny" style="margin-top:2px;color:var(--muted)">Following front 9</div>` : '';
     return `<div class="paircard">
       <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
       <div style="margin-top:4px">${esc(teeTime)} · ${esc(course)}</div>
+      ${followsNote}
     </div>`;
   };
 
