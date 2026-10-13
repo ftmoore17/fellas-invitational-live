@@ -295,7 +295,7 @@ async function renderLeaderboardPairs() {
     // For M6/M7: show placeholders until M5 is final (all scores entered)
     if (n === 6 || n === 7) {
       const m5 = await api(`/api/matches/5`).catch(() => null);
-      const m5Final = m5 && m5.rows && m5.rows.length > 0 && m5.rows.every(r => r.ev && r.ev.final);
+      const m5Final = m5 && m5.rows && m5.rows.length > 0 && m5.rows.every(r => r.final);
       if (!m5Final) {
         host.innerHTML = matchPlaceholderCard(n);
         return;
