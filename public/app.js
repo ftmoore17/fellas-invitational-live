@@ -1375,8 +1375,8 @@ async function renderCalcutta() {
     html += `
     <div class="card">
       <h2>Calcutta settings</h2>
-      <label class="ccheck"><input id="cs-open" type="checkbox"${board.open ? ' checked' : ''}> Player betting open</label>
-      <div class="sub">Your Venmo username — players get a pay button with it after betting.</div>
+      <button class="btn ${board.open ? 'secondary' : 'primary'} block" id="cs-toggle" style="margin-top:0">${board.open ? 'Close betting' : 'Reopen betting'}</button>
+      <div class="sub" style="margin-top:10px">Your Venmo username — players get a pay button with it after betting.</div>
       <div class="cform crow" style="align-items:flex-end">
         <label style="flex:1">@<input id="cs-venmo" type="text" placeholder="your-venmo-name" value="${esc(board.venmo_username || '')}" autocapitalize="none"></label>
         <button class="btn secondary" id="cs-save" style="margin:6px 0">Save</button>
@@ -1434,15 +1434,21 @@ async function renderCalcutta() {
   }
 
   if (isAdmin) {
+    $('#cs-toggle').onclick = async () => {
+      const err = $('#cs-err'); err.classList.add('hidden');
+      try {
+        await api('/api/admin/calcutta/settings', { method: 'PUT', body: JSON.stringify({ open: !board.open }) });
+        renderCalcutta();
+      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+    };
     $('#cs-save').onclick = async () => {
       const err = $('#cs-err'), ok = $('#cs-ok');
       err.classList.add('hidden'); ok.classList.add('hidden');
       try {
         await api('/api/admin/calcutta/settings', { method: 'PUT', body: JSON.stringify({
-          open: $('#cs-open').checked,
           venmo_username: $('#cs-venmo').value,
         }) });
-        ok.textContent = 'Settings saved ✓'; ok.classList.remove('hidden');
+        ok.textContent = 'Venmo username saved ✓'; ok.classList.remove('hidden');
         renderCalcutta();
       } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
     };
