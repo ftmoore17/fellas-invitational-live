@@ -292,7 +292,8 @@ function computeMatchBoard(tournamentId, matchNo) {
         course: ev.courseName, teeTime: ev.teeTime,
         total: ev.thru ? ev.total : null, toPar: ev.relPar,
         thru: ev.thru, complete: ev.complete,
-        _holes: ev.holes, // for the scorecard-playoff tiebreaker; stripped below
+        // 18-hole gross array (null = unplayed) — powers the expandable scorecard
+        holes: ev.holes,
       });
     }
     // Rank by score relative to par (live to-par); ties broken by USGA
@@ -301,9 +302,8 @@ function computeMatchBoard(tournamentId, matchNo) {
     rows.sort((a, b) => {
       const d = (a.toPar == null ? 99 : a.toPar) - (b.toPar == null ? 99 : b.toPar);
       if (d !== 0) return d;
-      return S.scorecardPlayoff(a._holes, b._holes);
+      return S.scorecardPlayoff(a.holes, b.holes);
     });
-    for (const r of rows) delete r._holes;
     return { matchNo, format: 'scramble', nine: m.segment, nineLabel: nineLabel(m.segment), rows };
   }
 
@@ -315,6 +315,7 @@ function computeMatchBoard(tournamentId, matchNo) {
       const ev = evaluatePairing(p, m, course);
       const meta = holesMeta(course);
       const holes = S.segmentHoles(m.segment);
+      const gross = grossByPlayer(p.id);
       for (const side of [ev.sideA, ev.sideB]) {
         for (const pl of side.players) {
           // Live to-par over the player's scored holes.
@@ -324,12 +325,20 @@ function computeMatchBoard(tournamentId, matchNo) {
             if (n == null || !meta) continue;
             toPar += n - meta[h - 1].par;
           }
+          // Hole-by-hole detail for the expandable board row.
+          const gmap = gross.get(pl.id) || new Map();
+          const detail = holes.map(h => ({
+            hole: h,
+            gross: gmap.get(h) ?? null,
+            net: pl.nets.get(h) ?? null,
+          }));
           rows.push({
             playerId: pl.id, name: pl.name, tier: pl.tier,
             color: teams.get(side.teamId), teamId: side.teamId,
             strokes: pl.strokes, net: pl.thru ? pl.netTotal : null,
             toPar: pl.thru ? toPar : null,
             thru: pl.thru, sf: pl.sf,
+            detail,
           });
         }
       }
@@ -347,6 +356,7 @@ function computeMatchBoard(tournamentId, matchNo) {
     const ev = evaluatePairing(p, m, course);
     const meta = holesMeta(course);
     const holes = S.segmentHoles(m.segment);
+    const gross = grossByPlayer(p.id);
     for (const [side, key] of [[ev.sideA, 'A'], [ev.sideB, 'B']]) {
       const nets = S.sideBestBallNets(side.players.map(pl => pl.nets), holes);
       let net = 0, toPar = 0, thru = 0;
@@ -356,11 +366,24 @@ function computeMatchBoard(tournamentId, matchNo) {
         net += n; thru++;
         if (meta) toPar += n - meta[h - 1].par;
       }
+      // Hole-by-hole detail per player for the expandable board row.
+      const detail = side.players.map(pl => {
+        const gmap = gross.get(pl.id) || new Map();
+        return {
+          name: pl.name, strokes: pl.strokes,
+          holes: holes.map(h => ({
+            hole: h,
+            gross: gmap.get(h) ?? null,
+            net: pl.nets.get(h) ?? null,
+          })),
+        };
+      });
       rows.push({
         teamId: side.teamId, color: teams.get(side.teamId),
         players: side.players.map(pl => ({ id: pl.id, name: pl.name, strokes: pl.strokes })),
         net: thru ? net : null, toPar: thru ? toPar : null, thru,
         sf: side.players.reduce((s, pl) => s + pl.sf, 0),
+        detail,
       });
     }
   }
@@ -556,6 +579,49 @@ function computeNineLowNet(tournamentId, nine) {
 // ---------------------------------------------------------- weekend low net
 
 /**
+ * Per-course aggregates for one player across non-scramble matches —
+ * powers the Weekend Low Net expandable "what they shot on each course"
+ * breakdown. Returns [{ course, gross, net, toPar, thru, sf }], only
+ * courses where the player has scores.
+ */
+function playerCourseAggregates(playerId) {
+  const player = db.prepare(`SELECT * FROM players WHERE id = ?`).get(playerId);
+  if (!player) return [];
+  const matches = getMatches(player.tournament_id).filter(mm => mm.format !== 'scramble');
+  const byCourse = new Map();
+  for (const m of matches) {
+    const pps = db.prepare(`
+      SELECT pp.pairing_id FROM pairing_players pp
+      JOIN pairings p ON p.id = pp.pairing_id
+      WHERE pp.player_id = ? AND p.match_id = ?
+    `).all(playerId, m.id);
+    for (const { pairing_id } of pps) {
+      const pairing = db.prepare(`SELECT * FROM pairings WHERE id = ?`).get(pairing_id);
+      const course = getCourse(pairing.course_id);
+      if (!course) continue;
+      const meta = holesMeta(course);
+      if (!meta) continue;
+      const grossMap = new Map(
+        getHoleScores(pairing_id).filter(s => s.player_id === playerId).map(s => [s.hole_no, s.gross])
+      );
+      if (!grossMap.size) continue;
+      const seg = S.playerSegmentScore(grossMap, meta, playerCH(player, course), m.segment);
+      let toPar = 0;
+      for (const [h, n] of seg.nets) {
+        if (n != null) toPar += n - meta[h - 1].par;
+      }
+      if (!byCourse.has(course.name)) {
+        byCourse.set(course.name, { course: course.name, gross: 0, net: 0, toPar: 0, thru: 0, sf: 0 });
+      }
+      const a = byCourse.get(course.name);
+      a.gross += seg.grossTotal; a.net += seg.netTotal; a.toPar += toPar;
+      a.thru += seg.holesPlayed; a.sf += seg.stableford;
+    }
+  }
+  return [...byCourse.values()];
+}
+
+/**
  * Weekend low-net individuals: each player's OWN net across M1,2,4,5,6,7
  * (scramble excluded). tier = 'A'|'B'|'C'|'D'|null (all).
  * Sorted by TO PAR ascending (most under par first) — Trice, 2026-10-13.
@@ -584,6 +650,8 @@ function computeWeekendLowNet(tournamentId, tier = null) {
       toPar: holesPlayed ? toParTotal : null,
       sfTotal,
       thru: holesPlayed,
+      // Per-course breakdown for the expandable row.
+      courses: playerCourseAggregates(pl.id),
     });
   }
   rows.sort((a, b) => (a.toPar == null ? 9999 : a.toPar) - (b.toPar == null ? 9999 : b.toPar)

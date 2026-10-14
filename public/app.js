@@ -839,20 +839,55 @@ async function renderMatchBoard() {
   const label = data.format === 'scramble' ? `Match ${n} · Team Low Net — ${esc(data.nineLabel)}`
     : data.format === 'singles' ? `Match ${n} · Individual Low Net — ${esc(data.nineLabel)}`
     : `Match ${n} · Pair Low Net — ${esc(data.nineLabel)}`;
-  let html = `<div class="card"><h2>${label}</h2><div class="sub">Live</div></div>`;
-  html += `<table class="rows"><thead><tr><th></th><th>${data.format === 'scramble' ? 'Team' : data.format === 'singles' ? 'Player' : 'Pair'}</th><th class="num">Thru</th><th class="num">To Par</th></tr></thead><tbody>`;
+  const who = data.format === 'scramble' ? 'Team' : data.format === 'singles' ? 'Player' : 'Pair';
+  let html = `<div class="card"><h2>${label}</h2><div class="sub">Live · tap a row for hole-by-hole</div></div>`;
+  html += `<div class="boardhead"><span></span><span>${who}</span><span class="num">Thru</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     const name = data.format === 'scramble' ? r.color
       : data.format === 'singles' ? r.name
       : r.players.map(p => p.name).join(' & ');
     const color = r.color;
-    html += `<tr><td class="rank">${i + 1}</td>
-      <td><span class="swatch" style="background:${teamHex(color)}"></span> ${esc(name)}</td>
-      <td class="num">${r.thru || '–'}</td>
-      <td class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}</td></tr>`;
+    html += `<details class="boardrow"><summary><span class="rank">${i + 1}</span>`
+      + `<span class="bname"><span class="swatch" style="background:${teamHex(color)}"></span><span class="t">${esc(name)}</span></span>`
+      + `<span class="num">${r.thru || '–'}</span>`
+      + `<span class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}</span></summary>`
+      + `<div class="body">${matchDetailHtml(data.format, r)}</div></details>`;
   });
-  html += `</tbody></table>`;
   el.innerHTML = html;
+}
+
+/* Hole chips for the expandable board rows: gross big, net small (net omitted for scramble). */
+function holeChips(holes, showNet) {
+  return `<div class="dchips">${holes.map(h => {
+    const g = h.gross == null ? '–' : h.gross;
+    const n = showNet ? `<span>${h.net == null ? '–' : h.net}</span>` : '';
+    return `<div class="dchip"><em>${h.hole}</em><b>${g}</b>${n}</div>`;
+  }).join('')}</div>`;
+}
+
+function matchDetailHtml(format, r) {
+  if (format === 'scramble') {
+    const holes = (r.holes || []).map((g, i) => ({ hole: i + 1, gross: g }));
+    return `<div class="dsub">${esc(r.course || '')}${r.teeTime ? ' · ' + esc(r.teeTime) : ''}</div>`
+      + holeChips(holes, false)
+      + `<div class="dtotal">Total ${r.total == null ? '–' : r.total} · ${fmtToPar(r.toPar)} · thru ${r.thru || 0}</div>`;
+  }
+  if (format === 'singles') {
+    const holes = r.detail || [];
+    let g = 0, nt = 0;
+    holes.forEach(h => { if (h.gross != null) g += h.gross; if (h.net != null) nt += h.net; });
+    return (r.strokes != null ? `<div class="dsub">${r.strokes} strokes</div>` : '')
+      + holeChips(holes, true)
+      + `<div class="dtotal">Total ${g} gross · ${nt} net</div>`;
+  }
+  // best-ball pairs: one block per player
+  return (r.detail || []).map(pl => {
+    let g = 0, nt = 0;
+    (pl.holes || []).forEach(h => { if (h.gross != null) g += h.gross; if (h.net != null) nt += h.net; });
+    return `<div class="dplayer">${esc(pl.name)}${pl.strokes != null ? ` <span class="tiny">· ${pl.strokes} STR</span>` : ''}</div>`
+      + holeChips(pl.holes || [], true)
+      + `<div class="dtotal">Total ${g} gross · ${nt} net</div>`;
+  }).join('');
 }
 
 async function renderWeekendBoard() {
@@ -861,16 +896,24 @@ async function renderWeekendBoard() {
   let data;
   try { data = await api(`/api/boards/weekend${tier}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  let html = `<div class="card"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2></div>`;
-  html += `<table class="rows"><thead><tr><th></th><th>Player</th><th class="num">Net</th><th class="num">To Par</th></tr></thead><tbody>`;
+  let html = `<div class="card"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2><div class="sub">Tap a player for per-course scoring</div></div>`;
+  html += `<div class="boardhead"><span></span><span>Player</span><span class="num">Net</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
-    html += `<tr><td class="rank">${i + 1}</td>
-      <td><span class="swatch" style="background:${teamHex(r.color)}"></span> ${esc(r.name)} <span class="pill">${esc(r.tier || '')}</span></td>
-      <td class="num">${r.netTotal == null ? '–' : r.netTotal}</td>
-      <td class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}</td></tr>`;
+    html += `<details class="boardrow"><summary><span class="rank">${i + 1}</span>`
+      + `<span class="bname"><span class="swatch" style="background:${teamHex(r.color)}"></span><span class="t">${esc(r.name)} <span class="pill">${esc(r.tier || '')}</span></span></span>`
+      + `<span class="num">${r.netTotal == null ? '–' : r.netTotal}</span>`
+      + `<span class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}</span></summary>`
+      + `<div class="body">${weekendDetailHtml(r)}</div></details>`;
   });
-  html += `</tbody></table>`;
   el.innerHTML = html;
+}
+
+function weekendDetailHtml(r) {
+  const courses = r.courses || [];
+  if (!courses.length) return `<div class="dsub">No scores yet</div>`;
+  return `<table class="rows mini"><thead><tr><th>Course</th><th class="num">Gross</th><th class="num">Net</th><th class="num">To Par</th></tr></thead><tbody>`
+    + courses.map(c => `<tr><td>${esc(c.course)}</td><td class="num">${c.gross}</td><td class="num">${c.net}</td><td class="num ${toParClass(c.toPar)}">${fmtToPar(c.toPar)}</td></tr>`).join('')
+    + `</tbody></table>`;
 }
 
 async function renderNineBoard(nine) {

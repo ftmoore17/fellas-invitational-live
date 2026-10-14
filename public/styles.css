@@ -224,3 +224,26 @@ details.adminrow .body { padding: 0 14px 14px; }
   #tab-content { max-width: 720px; }
   .overlay { align-items: center; }
 }
+
+/* Expandable board rows (Boards tab) */
+.boardhead { display: grid; grid-template-columns: 26px 1fr 46px 62px; gap: 6px; padding: 10px 14px 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.boardhead .num { text-align: right; }
+details.boardrow { background: #fff; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(10,25,50,.06); }
+details.boardrow summary { display: grid; grid-template-columns: 26px 1fr 46px 62px; gap: 6px; align-items: center; padding: 12px 14px; font-size: 13.5px; cursor: pointer; list-style: none; }
+details.boardrow summary::-webkit-details-marker { display: none; }
+details.boardrow summary .rank { color: var(--muted); font-weight: 700; }
+details.boardrow summary .bname { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
+details.boardrow summary .bname .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+details.boardrow summary .num { text-align: right; }
+details.boardrow .body { padding: 2px 14px 14px; }
+.dsub { font-size: 11.5px; color: var(--muted); margin: 2px 0 6px; }
+.dplayer { font-weight: 700; font-size: 13px; margin: 8px 0 2px; }
+.dplayer:first-child { margin-top: 2px; }
+.dchips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.dchip { flex: 1 0 36px; max-width: 54px; min-width: 36px; text-align: center; background: #f1f5f9; border-radius: 8px; padding: 4px 4px 5px; }
+.dchip em { display: block; font-style: normal; font-size: 9px; color: var(--muted); font-weight: 700; }
+.dchip b { display: block; font-size: 14px; line-height: 1.25; }
+.dchip span { display: block; font-size: 10px; color: var(--muted); }
+.dtotal { font-size: 12px; color: var(--muted); margin: 2px 0 8px; }
+table.rows.mini { font-size: 12.5px; margin-top: 6px; }
+table.rows.mini td { padding: 8px 10px; }
