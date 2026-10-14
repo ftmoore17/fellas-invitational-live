@@ -373,40 +373,30 @@ function matchPairCard(m) {
       if (!byCourse[c]) byCourse[c] = [];
       byCourse[c].push(row);
     });
-    // Overall place: sort ALL rows by relPar ascending (nulls last), assign 1st, 2nd, etc.
-    const allSorted = [...m.rows].sort((a, b) => {
-      const ap = a.relPar == null ? 999 : a.relPar;
-      const bp = b.relPar == null ? 999 : b.relPar;
-      return ap - bp;
-    });
-    const placeById = new Map();
-    allSorted.forEach((row, i) => {
-      // Use pairingId or a unique key
-      const key = row.pairingId || row.color + row.teeTime;
-      if (!placeById.has(key)) placeById.set(key, i + 1);
-    });
-    const getPlace = (row) => {
-      const key = row.pairingId || row.color + row.teeTime;
-      return placeById.get(key);
-    };
-    // Sort each course group by relPar ascending (nulls last)
-    Object.values(byCourse).forEach(group => {
-      group.sort((a, b) => {
+    // Place is PER COURSE: 1st-6th on Norman, 1st-4th on Fazio (sorted by relPar)
+    const courseOrder = Object.keys(byCourse).sort();
+    return `
+    <div class="section-title" style="margin-top:14px">${esc(m.label)}</div>
+    ${courseOrder.map(course => {
+      // Sort this course group by relPar ascending (nulls last), assign 1st, 2nd, etc.
+      const sorted = [...byCourse[course]].sort((a, b) => {
         const ap = a.relPar == null ? 999 : a.relPar;
         const bp = b.relPar == null ? 999 : b.relPar;
         return ap - bp;
       });
-    });
-    const courseOrder = Object.keys(byCourse).sort();
-    return `
-    <div class="section-title" style="margin-top:14px">${esc(m.label)}</div>
-    ${courseOrder.map(course => `
+      const placeByKey = new Map();
+      sorted.forEach((row, i) => {
+        const key = row.pairingId || row.color + row.teeTime;
+        placeByKey.set(key, i + 1);
+      });
+      return `
       <div class="section-title" style="margin-top:10px;font-size:0.9em;color:var(--muted)">${esc(course)}</div>
-      ${byCourse[course].map(row => {
+      ${sorted.map(row => {
         if (row.noCourse) return `<div class="paircard"><div class="phead"><span>${esc(row.teeTime || '')}</span><span>Course TBD</span></div></div>`;
-        return scrambleRowCard(row, getPlace(row));
+        const key = row.pairingId || row.color + row.teeTime;
+        return scrambleRowCard(row, placeByKey.get(key));
       }).join('')}
-    `).join('')}`;
+    `;}).join('')}`;
   }
   return `
     <div class="section-title" style="margin-top:14px">${esc(m.label)}</div>
