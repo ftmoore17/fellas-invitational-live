@@ -253,6 +253,17 @@ router.post('/internal/calcutta/mark-paid', requireInternal, (req, res) => {
   res.json({ ok: true, already_paid: !!bid.paid });
 });
 
+// Internal: set the Calcutta Venmo username (same validation as admin UI).
+router.post('/internal/calcutta/venmo-username', requireInternal, (req, res) => {
+  const t = currentTournament();
+  const u = String((req.body && req.body.venmo_username) || '').trim().replace(/^@/, '');
+  if (!u || !/^[A-Za-z0-9._-]{3,30}$/.test(u)) {
+    return res.status(400).json({ error: 'That Venmo username looks invalid' });
+  }
+  db.prepare(`UPDATE tournaments SET venmo_username = ? WHERE id = ?`).run(u, t.id);
+  res.json({ ok: true, venmo_username: u });
+});
+
 router.get('/schedule', auth.requireAuth, (req, res) => {
   const t = currentTournament();
   const playerId = req.session.role === 'player' ? req.session.player_id : null;
