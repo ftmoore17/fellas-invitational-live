@@ -1060,12 +1060,11 @@ async function adminMatches() {
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
   el.innerHTML = `<div class="card"><h2>Matches</h2>
     ${matches.map(m => `
-      <details class="adminrow"><summary>Match ${m.match_no} · ${esc(m.label)} ${m.locked ? '<span class="lockedtag">· locked</span>' : ''}</summary>
+      <details class="adminrow"><summary>Match ${m.match_no} · ${esc(m.label)}</summary>
       <div class="body">
         <div class="tiny">Format: ${esc(m.format)} · Segment: ${esc(m.segment)} · Day: ${esc(m.day)}</div>
         <div class="rowflex mt">
-          ${m.match_no === 6 && !m.locked ? `<button class="btn secondary" data-gen-both="1">Generate Singles (M6 & M7)</button>` : ''}
-          <button class="btn secondary" data-lock="${m.match_no}">${m.locked ? 'Unlock' : 'Lock'}</button>
+          ${m.match_no === 6 ? `<button class="btn secondary" data-gen-both="1">Generate Singles (M6 & M7)</button>` : ''}
         </div>
       </div></details>`).join('')}</div>`;
   $$('#admin-body [data-gen-both]').forEach(b => b.onclick = async () => {
@@ -1074,10 +1073,6 @@ async function adminMatches() {
       await api(`/api/admin/matches/7/generate-singles`, { method: 'POST' });
       alert('Singles generated for M6 & M7'); adminMatches();
     } catch (e) { alert(e.message); }
-  });
-  $$('#admin-body [data-lock]').forEach(b => b.onclick = async () => {
-    try { await api(`/api/admin/matches/${b.dataset.lock}/lock`, { method: 'POST', body: JSON.stringify({}) }); adminMatches(); }
-    catch (e) { alert(e.message); }
   });
 }
 
