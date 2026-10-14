@@ -853,7 +853,7 @@ async function renderMatchBoard() {
   const label = data.format === 'scramble' ? `Match ${n} · Team Low Net — ${esc(data.nineLabel)}`
     : data.format === 'singles' ? `Match ${n} · Individual Low Net — ${esc(data.nineLabel)}`
     : `Match ${n} · Pair Low Net — ${esc(data.nineLabel)}`;
-  let html = `<div class="card"><h2>${label}</h2><div class="sub">Live · ties broken by Stableford</div></div>`;
+  let html = `<div class="card"><h2>${label}</h2><div class="sub">Live</div></div>`;
   html += `<table class="rows"><thead><tr><th></th><th>${data.format === 'scramble' ? 'Team' : data.format === 'singles' ? 'Player' : 'Pair'}</th><th class="num">Thru</th><th class="num">To Par</th></tr></thead><tbody>`;
   data.rows.forEach((r, i) => {
     const name = data.format === 'scramble' ? r.color
