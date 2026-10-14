@@ -226,10 +226,10 @@ details.adminrow .body { padding: 0 14px 14px; }
 }
 
 /* Expandable board rows (Boards tab) */
-.boardhead { display: grid; grid-template-columns: 26px 1fr 46px 62px; gap: 6px; padding: 10px 14px 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.boardhead { display: grid; grid-template-columns: 26px 1fr 40px 46px 62px; gap: 6px; padding: 10px 14px 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .boardhead .num { text-align: right; }
 details.boardrow { background: #fff; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(10,25,50,.06); }
-details.boardrow summary { display: grid; grid-template-columns: 26px 1fr 46px 62px; gap: 6px; align-items: center; padding: 12px 14px; font-size: 13.5px; cursor: pointer; list-style: none; }
+details.boardrow summary { display: grid; grid-template-columns: 26px 1fr 40px 46px 62px; gap: 6px; align-items: center; padding: 12px 14px; font-size: 13.5px; cursor: pointer; list-style: none; }
 details.boardrow summary::-webkit-details-marker { display: none; }
 details.boardrow summary .rank { color: var(--muted); font-weight: 700; }
 details.boardrow summary .bname { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }

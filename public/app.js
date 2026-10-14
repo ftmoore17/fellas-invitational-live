@@ -912,11 +912,12 @@ async function renderWeekendBoard() {
   let data;
   try { data = await api(`/api/boards/weekend${tier}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  let html = `<div class="card"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2><div class="sub">Tap a player for per-course scoring</div></div>`;
-  html += `<div class="boardhead"><span></span><span>Player</span><span class="num">Net</span><span class="num">To Par</span></div>`;
+  let html = `<div class="card"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2><div class="sub">Thru is holes completed of 54 · tap a player for per-course scoring</div></div>`;
+  html += `<div class="boardhead"><span></span><span>Player</span><span class="num">Thru</span><span class="num">Net</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     html += `<details class="boardrow"><summary><span class="rank">${i + 1}</span>`
       + `<span class="bname"><span class="swatch" style="background:${teamHex(r.color)}"></span><span class="t">${esc(r.name)} <span class="pill">${esc(r.tier || '')}</span></span></span>`
+      + `<span class="num">${r.thru || '–'}</span>`
       + `<span class="num">${r.netTotal == null ? '–' : r.netTotal}</span>`
       + `<span class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}</span></summary>`
       + `<div class="body">${weekendDetailHtml(r)}</div></details>`;
