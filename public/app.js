@@ -1369,7 +1369,7 @@ async function renderCalcutta() {
   html += `
     <div class="card">
       <h2>Projected payouts <span class="tiny">· based on live standings</span></h2>
-      <div class="sub">Paid pool ${cMoney(board.paid_cents)} split ${payoutData.payouts.map(p => `${ordinal(p.place)} ${p.pct}%`).join(' / ')}.</div>
+      <div class="sub">Pool ${cMoney(board.pool_cents)} split ${payoutData.payouts.map(p => `${ordinal(p.place)} ${p.pct}%`).join(' / ')}.</div>
       ${payoutData.payouts.map(p => `
         <div class="cpay">
           <div class="cpay-head"><span class="cdot" style="background:${teamHex(p.color)}"></span><b>${ordinal(p.place)} · ${esc(p.color)}</b><b>${cMoney(p.prize_cents)}</b></div>

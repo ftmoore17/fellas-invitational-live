@@ -6,8 +6,8 @@
  * before entering a bid (paid flag); Venmo has no API, so the
  * verification stays a human step recorded in the app.
  *
- * Payouts: the (paid) pool is split across 1st/2nd/3rd place teams by
- * the tournament's calcutta_payouts JSON (default 50/30/20); each
+ * Payouts: the total pool is split across 1st/2nd/3rd place teams by
+ * the tournament's calcutta_payouts JSON (default 100/0/0 winner-take-all); each
  * team's prize is divided among its bidders by their share of the team.
  */
 'use strict';
@@ -78,7 +78,8 @@ function getBoard(tournamentId) {
   };
 }
 
-/** Projected payouts from live standings. Place -> {team, prize, cuts[]}. */
+/** Projected payouts from live standings. Place -> {team, prize, cuts[]}.
+ *  Computed from the TOTAL pool (paid + pending) — the auction total is the prize. */
 function getPayouts(tournamentId) {
   const board = getBoard(tournamentId);
   const lb = LB.computeMasterLeaderboard(tournamentId);
@@ -91,7 +92,7 @@ function getPayouts(tournamentId) {
       if (!pct) return null;
       const row = placeTeam.get(place);
       if (!row) return null;
-      const prizeCents = Math.round(board.paid_cents * pct / 100);
+      const prizeCents = Math.round(board.pool_cents * pct / 100);
       const team = teamBids.get(row.teamId);
       const cuts = team ? team.bids.map(b => ({
         name: b.name,
