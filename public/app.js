@@ -1325,9 +1325,10 @@ async function renderCalcutta() {
       <h2>Place a bet</h2>
       <div class="sub">Own a piece of a team — your % of the team wins 100% of the pool if they win it all. You'll pay on Venmo right after.</div>
       <div class="cform crow">
-        <label>Team<select id="cbet-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)}</option>`).join('')}</select></label>
+        <label>Team<select id="cbet-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)} — ${cMoney(t.total_cents)} in</option>`).join('')}</select></label>
         <label>Amount $<input id="cbet-amount" type="number" min="1" step="1" placeholder="100"></label>
       </div>
+      <div class="tiny" id="cbet-preview" style="margin:2px 0 6px"></div>
       <button class="btn gold block" id="cbet-go">Bet &amp; pay on Venmo</button>
       <div class="err hidden" id="cbet-err"></div>
     </div>`;
@@ -1389,7 +1390,7 @@ async function renderCalcutta() {
       <div class="sub">Verify the bidder's Venmo <b>before</b> entering — leave Paid checked once you've confirmed it.</div>
       <div class="cform">
         <label>Bidder<select id="cb-player">${players.map(p => `<option value="${p.id}">${esc(p.name)}${p.team_color ? ` (${esc(p.team_color)})` : ''}</option>`).join('')}</select></label>
-        <label>Team<select id="cb-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)}</option>`).join('')}</select></label>
+        <label>Team<select id="cb-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)} — ${cMoney(t.total_cents)} in</option>`).join('')}</select></label>
         <label>Amount $<input id="cb-amount" type="number" min="1" step="1" placeholder="100"></label>
         <label class="ccheck"><input id="cb-paid" type="checkbox" checked> Paid (Venmo verified)</label>
         <button class="btn primary block" id="cb-add">Add bid</button>
@@ -1420,6 +1421,23 @@ async function renderCalcutta() {
   el.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => { calcuttaTeamId = Number(b.dataset.ct); renderCalcutta(); });
 
   if (isPlayer && board.open) {
+    const updPreview = () => {
+      const team = board.teams.find(t => t.id === Number($('#cbet-team').value));
+      const amt = Number($('#cbet-amount').value) || 0;
+      const prev = $('#cbet-preview');
+      if (!prev) return;
+      if (team && amt > 0) {
+        const pct = amt / (team.total_cents / 100 + amt) * 100;
+        prev.textContent = `${cMoney(amt * 100)} would be about ${pct.toFixed(1)}% of ${team.color} (${cMoney(team.total_cents)} in so far)`;
+      } else if (team) {
+        prev.textContent = `${cMoney(team.total_cents)} bet on ${team.color} so far`;
+      } else {
+        prev.textContent = '';
+      }
+    };
+    $('#cbet-team').onchange = updPreview;
+    $('#cbet-amount').oninput = updPreview;
+    updPreview();
     $('#cbet-go').onclick = async () => {
       const err = $('#cbet-err'); err.classList.add('hidden');
       const teamId = Number($('#cbet-team').value);
