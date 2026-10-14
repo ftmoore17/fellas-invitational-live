@@ -1367,15 +1367,15 @@ async function renderCalcutta() {
   }
 
   html += `
-    <details class="card">
-      <summary><b>Projected payouts</b> <span class="tiny">· based on live standings</span></summary>
+    <div class="card">
+      <h2>Projected payouts <span class="tiny">· based on live standings</span></h2>
       <div class="sub">Paid pool ${cMoney(board.paid_cents)} split ${payoutData.payouts.map(p => `${ordinal(p.place)} ${p.pct}%`).join(' / ')}.</div>
       ${payoutData.payouts.map(p => `
         <div class="cpay">
           <div class="cpay-head"><span class="cdot" style="background:${teamHex(p.color)}"></span><b>${ordinal(p.place)} · ${esc(p.color)}</b><b>${cMoney(p.prize_cents)}</b></div>
           ${p.cuts.map(c => `<div class="cbid"><div class="cbid-main"><b>${esc(c.name)}</b><span class="tiny">${c.pct}% of team</span></div><div class="cbid-amt">${cMoney(c.cut_cents)}</div></div>`).join('')}
         </div>`).join('')}
-    </details>`;
+    </div>`;
 
   if (isAdmin) {
     html += `
