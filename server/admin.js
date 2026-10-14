@@ -294,21 +294,25 @@ router.delete('/pairings/:id', (req, res) => {
  * Foursomes: A+D share tee times, then B+C. Re-runnable until locked.
  */
 function pairingFormulas(matchNo, count) {
-  // Returns array of [rankA, rankB] (1-based ranks within tier), in TEE TIME ORDER
-  // (lowest seeds first, highest last — last place tees off first).
+  // Returns array of [rankA, rankB] (1-based ranks within tier), in TEE TIME ORDER.
   // M6 (from Trice's spreadsheet): 9v10, 7v8, 5v6, 2v3, 1v4
-  // M7: 9v10, 7v8, 5v6, 3v4, 1v2 (lowest seeds first)
-  const pairs = [];
+  // M7 (from Trice's spreadsheet): 9v8, 5v10, 6v7, 4v3, 1v2
   if (matchNo === 6) {
     // Top 4 cross: 1v4, 2v3; rest consecutive: 5v6, 7v8, 9v10...
-    // Return in reverse (tee time) order: 9v10 first, 1v4 last.
+    // Return in tee-time order: 9v10 first, 1v4 last.
     const top = [[1, 4], [2, 3]];
     const rest = [];
     for (let r = 5; r + 1 <= count; r += 2) rest.push([r, r + 1]);
-    // rest is [5,6], [7,8], [9,10] — reverse for tee order, then top reversed
     return [...rest.reverse(), ...top.reverse()];
   } else {
-    // M7: 1v2, 3v4, 5v6... reversed for tee order
+    // M7: from spreadsheet — 9v8, 5v10, 6v7, 3v4, 1v2 (in tee-time order)
+    // For 10 players: [9,8], [5,10], [6,7], [3,4], [1,2]
+    // Generalized: top 4 as 1v2, 3v4; bottom 6 as 9v8, 5v10, 6v7
+    if (count === 10) {
+      return [[9, 8], [5, 10], [6, 7], [3, 4], [1, 2]];
+    }
+    // Fallback for other counts: 1v2, 3v4, 5v6... reversed
+    const pairs = [];
     for (let r = 1; r + 1 <= count; r += 2) pairs.push([r, r + 1]);
     return pairs.reverse();
   }
