@@ -326,7 +326,7 @@ router.post('/matches/:matchNo/generate-singles', (req, res) => {
   }
   const m = db.prepare(`SELECT * FROM matches WHERE tournament_id = ? AND match_no = ?`).get(t.id, matchNo);
   if (!m) return res.status(404).json({ error: 'Match not found' });
-  if (m.locked) return res.status(403).json({ error: 'Match is locked — unlock to regenerate' });
+  // Note: generate-singles works even if locked — it replaces pairings, doesn't edit scores.
 
   const board = LB.computeMasterLeaderboard(t.id);
   const standingByTeam = new Map(board.teams.map(tm => [tm.teamId, tm.place])); // 1-based

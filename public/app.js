@@ -292,16 +292,12 @@ async function renderLeaderboardPairs() {
   const n = state.lbMatch || 1;
   host.innerHTML = `<div class="card center tiny">Loading pairings…</div>`;
   try {
-    // For M6/M7: show placeholders until M5 is final (all scores entered)
-    if (n === 6 || n === 7) {
-      const m5 = await api(`/api/matches/5`).catch(() => null);
-      const m5Final = m5 && m5.rows && m5.rows.length > 0 && m5.rows.every(r => r.final);
-      if (!m5Final) {
-        host.innerHTML = matchPlaceholderCard(n);
-        return;
-      }
-    }
     const m = await api(`/api/matches/${n}`).catch(() => null);
+    // For M6/M7: show placeholders until pairings are generated (via Admin Generate button)
+    if ((n === 6 || n === 7) && (!m || !m.rows || m.rows.length === 0)) {
+      host.innerHTML = matchPlaceholderCard(n);
+      return;
+    }
     host.innerHTML = m ? matchPairCard(m) : `<div class="card center tiny">No pairings yet.</div>`;
   } catch { host.innerHTML = `<div class="card center tiny">Couldn't load pairings.</div>`; }
 }
