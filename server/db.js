@@ -172,7 +172,7 @@ db.exec(SCHEMA);
 // Lightweight column migrations for tables created before the column existed.
 const _tcols = db.prepare(`PRAGMA table_info(tournaments)`).all().map(c => c.name);
 if (!_tcols.includes('calcutta_payouts')) {
-  // JSON: {"1":50,"2":30,"3":20} — % of the (paid) pool to 1st/2nd/3rd place teams.
+  // JSON: {"1":100,"2":0,"3":0} — % of the (paid) pool to 1st/2nd/3rd place teams (winner-take-all default).
   db.exec(`ALTER TABLE tournaments ADD COLUMN calcutta_payouts TEXT`);
 }
 

@@ -15,7 +15,7 @@
 const db = require('./db');
 const LB = require('./leaderboards');
 
-const DEFAULT_PAYOUTS = { 1: 50, 2: 30, 3: 20 };
+const DEFAULT_PAYOUTS = { 1: 100, 2: 0, 3: 0 };
 
 function getPayoutSplit(tournament) {
   try {
