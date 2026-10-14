@@ -27,6 +27,7 @@ const express = require('express');
 const db = require('./db');
 const auth = require('./auth');
 const LB = require('./leaderboards');
+const CAL = require('./calcutta');
 const S = require('./scoring');
 
 const router = express.Router();
@@ -140,6 +141,17 @@ router.get('/boards/nine/:nine', auth.requireAuth, (req, res) => {
     return res.status(400).json({ error: "nine must be 'front' or 'back'" });
   }
   res.json(LB.computeNineLowNet(t.id, nine));
+});
+
+// Calcutta auction board + projected payouts (all signed-in roles).
+router.get('/calcutta', auth.requireAuth, (req, res) => {
+  const t = currentTournament();
+  res.json(CAL.getBoard(t.id));
+});
+
+router.get('/calcutta/payouts', auth.requireAuth, (req, res) => {
+  const t = currentTournament();
+  res.json({ payouts: CAL.getPayouts(t.id) });
 });
 
 router.get('/schedule', auth.requireAuth, (req, res) => {

@@ -197,7 +197,7 @@ function renderAdminLogin() {
 
 /* ============================== shell ============================== */
 
-const TAB_TITLES = { leaderboard: 'Leaderboard', scoring: 'Scoring', boards: 'Boards', schedule: 'Schedule', admin: 'Admin' };
+const TAB_TITLES = { leaderboard: 'Leaderboard', scoring: 'Scoring', boards: 'Boards', calcutta: 'Calcutta', schedule: 'Schedule', admin: 'Admin' };
 
 function showMain() {
   $('#auth-view').classList.add('hidden');
@@ -222,7 +222,7 @@ function switchTab(tab) {
 
 function refreshCurrentTab() {
   if (!state.me.role) return;
-  ({ leaderboard: renderLeaderboard, scoring: renderScoring, boards: renderBoards, schedule: renderSchedule, admin: renderAdmin })[state.tab]();
+  ({ leaderboard: renderLeaderboard, scoring: renderScoring, boards: renderBoards, calcutta: renderCalcutta, schedule: renderSchedule, admin: renderAdmin })[state.tab]();
 }
 
 /* ============================== LEADERBOARD ============================== */
@@ -856,11 +856,13 @@ async function renderMatchBoard() {
   el.innerHTML = html;
 }
 
-/* Hole chips for the expandable board rows: gross big, net small (net omitted for scramble). */
-function holeChips(holes, showNet) {
-  return `<div class="dchips">${holes.map(h => {
+/* Hole chips for the expandable board rows: gross big, net small (net omitted for scramble).
+   `taken` (optional): parallel bool array — highlighted nets counted for best ball. */
+function holeChips(holes, showNet, taken) {
+  return `<div class="dchips">${holes.map((h, i) => {
     const g = h.gross == null ? '–' : h.gross;
-    const n = showNet ? `<span>${h.net == null ? '–' : h.net}</span>` : '';
+    const isTaken = taken && taken[i];
+    const n = showNet ? `<span class="${isTaken ? 'taken' : ''}">${h.net == null ? '–' : h.net}</span>` : '';
     return `<div class="dchip"><em>${h.hole}</em><b>${g}</b>${n}</div>`;
   }).join('')}</div>`;
 }
@@ -880,14 +882,28 @@ function matchDetailHtml(format, r) {
       + holeChips(holes, true)
       + `<div class="dtotal">Total ${g} gross · ${nt} net</div>`;
   }
-  // best-ball pairs: one block per player
-  return (r.detail || []).map(pl => {
+  // best-ball pairs: one block per player; highlight each hole's taken net
+  const bplayers = r.detail || [];
+  const bnh = Math.max(0, ...bplayers.map(p => (p.holes || []).length));
+  const takenBy = [];
+  for (let i = 0; i < bnh; i++) {
+    let bi = -1, bn = null;
+    bplayers.forEach((pl, pi) => {
+      const n = (pl.holes[i] || {}).net;
+      if (n != null && (bn == null || n < bn)) { bn = n; bi = pi; }
+    });
+    takenBy.push(bi);
+  }
+  let bout = bplayers.map((pl, pi) => {
     let g = 0, nt = 0;
     (pl.holes || []).forEach(h => { if (h.gross != null) g += h.gross; if (h.net != null) nt += h.net; });
+    const flags = (pl.holes || []).map((_, i) => takenBy[i] === pi);
     return `<div class="dplayer">${esc(pl.name)}${pl.strokes != null ? ` <span class="tiny">· ${pl.strokes} STR</span>` : ''}</div>`
-      + holeChips(pl.holes || [], true)
+      + holeChips(pl.holes || [], true, flags)
       + `<div class="dtotal">Total ${g} gross · ${nt} net</div>`;
   }).join('');
+  bout += `<div class="dsub">Highlighted nets are the ones counted — they add up to the pair's ${r.net}.</div>`;
+  return bout;
 }
 
 async function renderWeekendBoard() {
@@ -1238,6 +1254,176 @@ async function adminSetup() {
       btn.disabled = false;
     }
   };
+}
+
+/* ============================== CALCUTTA ============================== */
+/* Thursday-night auction: bidders buy a % of each team. Admin verifies
+   Venmo before entering a bid (paid flag); share of team = bid / team total. */
+
+let calcuttaTeamId = null;
+const cMoney = c => '$' + (c / 100).toLocaleString('en-US', { maximumFractionDigits: (c % 100) ? 2 : 0 });
+
+async function renderCalcutta() {
+  const el = $('#tab-content');
+  el.innerHTML = `<div class="card center tiny">Loading Calcutta…</div>`;
+  const isAdmin = state.me.role === 'admin';
+  let board, payoutData, players = [];
+  try {
+    const reqs = [api('/api/calcutta'), api('/api/calcutta/payouts')];
+    if (isAdmin) reqs.push(api('/api/admin/players'));
+    const out = await Promise.all(reqs);
+    board = out[0]; payoutData = out[1]; if (isAdmin) players = out[2];
+  } catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
+
+  if (!board.teams.some(t => t.id === calcuttaTeamId)) {
+    calcuttaTeamId = (board.teams.slice().sort((a, b) => b.total_cents - a.total_cents)[0] || {}).id ?? null;
+  }
+  const team = board.teams.find(t => t.id === calcuttaTeamId);
+
+  let html = `
+    <div class="card cpool">
+      <div class="sub">Calcutta Pool</div>
+      <div class="cpool-total">${cMoney(board.pool_cents)}</div>
+      <div class="tiny">${board.bid_count} bid${board.bid_count === 1 ? '' : 's'} · Paid ${cMoney(board.paid_cents)}${board.pending_cents > 0 ? ` · <span class="cpending">Pending ${cMoney(board.pending_cents)}</span>` : ''}</div>
+    </div>
+
+    <div class="mpill-row" style="margin:12px 0">
+      ${board.teams.map(t => `<button class="mpill${t.id === calcuttaTeamId ? ' active' : ''}" data-ct="${t.id}"><span class="cdot" style="background:${teamHex(t.color)}"></span>${esc(t.color)} <b>${cMoney(t.total_cents)}</b></button>`).join('')}
+    </div>`;
+
+  if (team) {
+    html += `
+    <div class="card">
+      <h2><span class="cdot" style="background:${teamHex(team.color)}"></span> ${esc(team.color)} <span class="tiny">· ${cMoney(team.total_cents)} total</span></h2>
+      ${team.bids.length === 0 ? `<div class="sub">No bids yet.</div>` : team.bids.map(b => `
+        <div class="cbid">
+          <div class="cbid-main">
+            <b>${esc(b.name)}</b>
+            <span class="tiny">${b.pct}% of team</span>
+          </div>
+          ${isAdmin
+            ? `<input class="camt" type="number" min="1" step="1" value="${b.amount_cents / 100}" data-bid="${b.id}" aria-label="Bid amount">
+               <button class="cpaid${b.paid ? ' on' : ''}" data-bid="${b.id}" title="Toggle paid">${b.paid ? '✓' : '⏳'}</button>
+               <button class="cdel" data-bid="${b.id}" title="Delete bid">✕</button>`
+            : `<div class="cbid-amt">${cMoney(b.amount_cents)} ${b.paid ? '<span class="cpaidmark">✓</span>' : '<span class="cpending">pending</span>'}</div>`}
+        </div>`).join('')}
+    </div>`;
+  }
+
+  html += `
+    <details class="card">
+      <summary><b>Projected payouts</b> <span class="tiny">· based on live standings</span></summary>
+      <div class="sub">Paid pool ${cMoney(board.paid_cents)} split ${payoutData.payouts.map(p => `${ordinal(p.place)} ${p.pct}%`).join(' / ')}.</div>
+      ${payoutData.payouts.map(p => `
+        <div class="cpay">
+          <div class="cpay-head"><span class="cdot" style="background:${teamHex(p.color)}"></span><b>${ordinal(p.place)} · ${esc(p.color)}</b><b>${cMoney(p.prize_cents)}</b></div>
+          ${p.cuts.map(c => `<div class="cbid"><div class="cbid-main"><b>${esc(c.name)}</b><span class="tiny">${c.pct}% of team</span></div><div class="cbid-amt">${cMoney(c.cut_cents)}</div></div>`).join('')}
+        </div>`).join('')}
+    </details>`;
+
+  if (isAdmin) {
+    html += `
+    <div class="card">
+      <h2>Enter a bid</h2>
+      <div class="sub">Verify the bidder's Venmo <b>before</b> entering — leave Paid checked once you've confirmed it.</div>
+      <div class="cform">
+        <label>Bidder<select id="cb-player">${players.map(p => `<option value="${p.id}">${esc(p.name)}${p.team_color ? ` (${esc(p.team_color)})` : ''}</option>`).join('')}</select></label>
+        <label>Team<select id="cb-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)}</option>`).join('')}</select></label>
+        <label>Amount $<input id="cb-amount" type="number" min="1" step="1" placeholder="100"></label>
+        <label class="ccheck"><input id="cb-paid" type="checkbox" checked> Paid (Venmo verified)</label>
+        <button class="btn primary block" id="cb-add">Add bid</button>
+        <div class="err hidden" id="cb-err"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Payout split</h2>
+      <div class="sub">% of the paid pool to the 1st / 2nd / 3rd place teams. Must add up to 100%.</div>
+      <div class="crow">
+        <label>1st<input id="cp-1" type="number" min="0" max="100" value="${board.payouts[1]}"></label>
+        <label>2nd<input id="cp-2" type="number" min="0" max="100" value="${board.payouts[2]}"></label>
+        <label>3rd<input id="cp-3" type="number" min="0" max="100" value="${board.payouts[3]}"></label>
+      </div>
+      <button class="btn secondary block" id="cp-save">Save payout split</button>
+      <div class="err hidden" id="cp-err"></div>
+      <div class="okmsg hidden" id="cp-ok"></div>
+    </div>
+    <div class="card" style="border-color:#ca4747">
+      <h2 style="color:#ca4747">Danger Zone</h2>
+      <div class="sub">Wipe all Calcutta bids and start the auction over. Cannot be undone.</div>
+      <button class="btn block" id="cb-clear" style="background:#ca4747;color:#fff">Clear All Bids</button>
+    </div>`;
+  }
+
+  el.innerHTML = html;
+
+  el.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => { calcuttaTeamId = Number(b.dataset.ct); renderCalcutta(); });
+
+  if (isAdmin) {
+    el.querySelectorAll('.camt').forEach(inp => {
+      inp.onchange = async () => {
+        try {
+          await api(`/api/admin/calcutta/bids/${inp.dataset.bid}`, { method: 'PATCH', body: JSON.stringify({ amount: Number(inp.value) }) });
+          renderCalcutta();
+        } catch (e) { inp.classList.add('cerr'); setTimeout(() => inp.classList.remove('cerr'), 1500); }
+      };
+    });
+    el.querySelectorAll('.cpaid').forEach(btn => {
+      btn.onclick = async () => {
+        const on = !btn.classList.contains('on');
+        await api(`/api/admin/calcutta/bids/${btn.dataset.bid}`, { method: 'PATCH', body: JSON.stringify({ paid: on }) });
+        renderCalcutta();
+      };
+    });
+    el.querySelectorAll('.cdel').forEach(btn => {
+      btn.onclick = async () => {
+        if (!btn.dataset.armed) {
+          btn.dataset.armed = '1'; btn.textContent = 'Sure?';
+          setTimeout(() => { delete btn.dataset.armed; btn.textContent = '✕'; }, 4000);
+          return;
+        }
+        await api(`/api/admin/calcutta/bids/${btn.dataset.bid}`, { method: 'DELETE' });
+        renderCalcutta();
+      };
+    });
+    $('#cb-add').onclick = async () => {
+      const err = $('#cb-err'); err.classList.add('hidden');
+      try {
+        await api('/api/admin/calcutta/bids', { method: 'POST', body: JSON.stringify({
+          player_id: Number($('#cb-player').value),
+          team_id: Number($('#cb-team').value),
+          amount: Number($('#cb-amount').value),
+          paid: $('#cb-paid').checked,
+        }) });
+        calcuttaTeamId = Number($('#cb-team').value);
+        renderCalcutta();
+      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+    };
+    $('#cp-save').onclick = async () => {
+      const err = $('#cp-err'), ok = $('#cp-ok');
+      err.classList.add('hidden'); ok.classList.add('hidden');
+      try {
+        await api('/api/admin/calcutta/payouts', { method: 'PUT', body: JSON.stringify({
+          1: Number($('#cp-1').value), 2: Number($('#cp-2').value), 3: Number($('#cp-3').value),
+        }) });
+        ok.textContent = 'Payout split saved ✓'; ok.classList.remove('hidden');
+        renderCalcutta();
+      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+    };
+    let armed = false;
+    $('#cb-clear').onclick = async () => {
+      const btn = $('#cb-clear');
+      if (!armed) {
+        armed = true;
+        btn.textContent = 'Are you sure? Tap again to wipe all bids';
+        setTimeout(() => { armed = false; btn.textContent = 'Clear All Bids'; }, 10000);
+        return;
+      }
+      armed = false;
+      btn.textContent = 'Clearing…'; btn.disabled = true;
+      try { await api('/api/admin/calcutta/bids', { method: 'DELETE' }); renderCalcutta(); }
+      catch (e) { btn.textContent = 'Clear All Bids'; btn.disabled = false; }
+    };
+  }
 }
 
 // Start the app

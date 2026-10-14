@@ -101,6 +101,74 @@ router.put('/tournaments/:id/prizes', (req, res) => {
   res.json({ ok: true });
 });
 
+// ------------------------------------------------------------------ calcutta
+//
+// Thursday-night auction. Admin verifies Venmo payment before entering
+// each bid (Venmo has no API — the paid flag records the human check).
+
+router.post('/calcutta/bids', (req, res) => {
+  const t = currentTournament();
+  const { player_id, team_id, amount, paid } = req.body || {};
+  const cents = Math.round(Number(amount) * 100);
+  if (!player_id || !team_id || !Number.isFinite(cents) || cents <= 0) {
+    return res.status(400).json({ error: 'player_id, team_id and a positive amount are required' });
+  }
+  const player = db.prepare(`SELECT id FROM players WHERE id = ? AND tournament_id = ?`).get(player_id, t.id);
+  const team = db.prepare(`SELECT id FROM teams WHERE id = ? AND tournament_id = ?`).get(team_id, t.id);
+  if (!player || !team) return res.status(400).json({ error: 'Player or team not found' });
+  db.prepare(`
+    INSERT INTO calcutta_bids (tournament_id, bidder_player_id, team_id, amount_cents, paid)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT (tournament_id, bidder_player_id, team_id)
+    DO UPDATE SET amount_cents = excluded.amount_cents, paid = excluded.paid
+  `).run(t.id, player_id, team_id, cents, paid === false || paid === 0 ? 0 : 1);
+  res.json({ ok: true });
+});
+
+router.patch('/calcutta/bids/:id', (req, res) => {
+  const t = currentTournament();
+  const bid = db.prepare(`SELECT * FROM calcutta_bids WHERE id = ? AND tournament_id = ?`)
+    .get(req.params.id, t.id);
+  if (!bid) return res.status(404).json({ error: 'Bid not found' });
+  const { amount, paid } = req.body || {};
+  let cents = bid.amount_cents, paidFlag = bid.paid;
+  if (amount !== undefined) {
+    cents = Math.round(Number(amount) * 100);
+    if (!Number.isFinite(cents) || cents <= 0) return res.status(400).json({ error: 'amount must be positive' });
+  }
+  if (paid !== undefined) paidFlag = paid ? 1 : 0;
+  db.prepare(`UPDATE calcutta_bids SET amount_cents = ?, paid = ? WHERE id = ?`).run(cents, paidFlag, bid.id);
+  res.json({ ok: true });
+});
+
+router.delete('/calcutta/bids/:id', (req, res) => {
+  const t = currentTournament();
+  db.prepare(`DELETE FROM calcutta_bids WHERE id = ? AND tournament_id = ?`).run(req.params.id, t.id);
+  res.json({ ok: true });
+});
+
+// Wipe all Calcutta bids (fresh auction).
+router.delete('/calcutta/bids', (req, res) => {
+  const t = currentTournament();
+  const r = db.prepare(`DELETE FROM calcutta_bids WHERE tournament_id = ?`).run(t.id);
+  res.json({ ok: true, removed: r.changes });
+});
+
+// Payout split: % of the paid pool to 1st/2nd/3rd place teams. Must sum to 100.
+router.put('/calcutta/payouts', (req, res) => {
+  const t = currentTournament();
+  const parts = [1, 2, 3].map(k => Number((req.body || {})[k]));
+  if (parts.some(p => !Number.isFinite(p) || p < 0)) {
+    return res.status(400).json({ error: 'Payouts must be non-negative numbers' });
+  }
+  if (Math.round(parts.reduce((s, p) => s + p, 0)) !== 100) {
+    return res.status(400).json({ error: 'Payouts must add up to 100%' });
+  }
+  db.prepare(`UPDATE tournaments SET calcutta_payouts = ? WHERE id = ?`)
+    .run(JSON.stringify({ 1: parts[0], 2: parts[1], 3: parts[2] }), t.id);
+  res.json({ ok: true });
+});
+
 // ------------------------------------------------------------------ teams
 
 router.get('/teams', (req, res) => {

@@ -247,3 +247,29 @@ details.boardrow .body { padding: 2px 14px 14px; }
 .dtotal { font-size: 12px; color: var(--muted); margin: 2px 0 8px; }
 table.rows.mini { font-size: 12.5px; margin-top: 6px; }
 table.rows.mini td { padding: 8px 10px; }
+
+/* ---------- boards: taken-net highlight ---------- */
+.dchip span.taken { background: var(--navy-600); color: #fff; border-radius: 4px; padding: 1px 4px; font-weight: 800; }
+
+/* ---------- calcutta ---------- */
+.cpool { text-align: center; }
+.cpool-total { font-size: 34px; font-weight: 800; color: var(--navy-800); margin: 2px 0 4px; }
+.cdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
+.cbid { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-top: 1px solid #eef2f7; }
+.cbid-main { flex: 1; display: flex; flex-direction: column; line-height: 1.3; }
+.cbid-amt { font-weight: 700; white-space: nowrap; }
+.cpaidmark { color: var(--green); font-weight: 800; }
+.cpending { color: #b97f2a; font-size: 12px; font-weight: 600; }
+input.camt { width: 76px; padding: 8px; margin: 0; font-size: 14px; }
+input.camt.cerr { border-color: var(--red); }
+.cpaid, .cdel { border: 1.5px solid var(--line); background: #fff; border-radius: 10px; width: 38px; height: 38px; font-size: 16px; cursor: pointer; flex: none; }
+.cpaid.on { border-color: var(--green); background: #f0fdf4; }
+.cdel { color: var(--red); }
+.cform label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin: 4px 0; }
+.ccheck { display: flex !important; align-items: center; gap: 8px; font-size: 14px !important; color: var(--ink) !important; margin: 10px 0 !important; }
+.ccheck input { width: auto; margin: 0; }
+.crow { display: flex; gap: 8px; }
+.crow label { flex: 1; }
+.cpay { margin-top: 10px; }
+.cpay-head { display: flex; align-items: center; gap: 6px; padding: 8px 0; border-top: 1px solid #eef2f7; }
+.cpay-head b:last-child { margin-left: auto; }

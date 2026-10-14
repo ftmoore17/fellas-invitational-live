@@ -152,8 +152,28 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   expires_at TEXT NOT NULL
 );
+
+-- Calcutta auction bids (Thursday night). One bid per bidder per team;
+-- the bidder's share of the team = amount / team total.
+CREATE TABLE IF NOT EXISTS calcutta_bids (
+  id INTEGER PRIMARY KEY,
+  tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+  bidder_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  amount_cents INTEGER NOT NULL DEFAULT 0,
+  paid INTEGER NOT NULL DEFAULT 1,               -- 1 = Venmo verified by admin
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (tournament_id, bidder_player_id, team_id)
+);
 `;
 
 db.exec(SCHEMA);
+
+// Lightweight column migrations for tables created before the column existed.
+const _tcols = db.prepare(`PRAGMA table_info(tournaments)`).all().map(c => c.name);
+if (!_tcols.includes('calcutta_payouts')) {
+  // JSON: {"1":50,"2":30,"3":20} — % of the (paid) pool to 1st/2nd/3rd place teams.
+  db.exec(`ALTER TABLE tournaments ADD COLUMN calcutta_payouts TEXT`);
+}
 
 module.exports = db;
