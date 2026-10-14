@@ -1299,11 +1299,15 @@ async function renderCalcutta() {
     html += `
     <div class="card cconfirm">
       <h2>Bet placed ✓</h2>
-      <div class="sub">${cMoney(lb.amount_cents)} on <b>${esc(lb.color)}</b> — now send the money on Venmo to lock it in.</div>
-      ${vuser
-        ? `<a class="btn primary block cvenmo" href="https://venmo.com/u/${encodeURIComponent(vuser)}" target="_blank" rel="noopener">Pay ${cMoney(lb.amount_cents)} to @${esc(vuser)} on Venmo</a>
-           <div class="tiny" style="margin-top:6px">Put “Calcutta ${esc(lb.color)}” in the Venmo note.</div>`
-        : `<div class="sub">Send ${cMoney(lb.amount_cents)} to Trice on Venmo with the note “Calcutta ${esc(lb.color)}”.</div>`}
+      <div class="sub">${cMoney(lb.amount_cents)} on <b>${esc(lb.color)}</b>.</div>
+      ${lb.unpaid_cents > 0 ? `
+        <div class="cpool-total" style="font-size:26px;margin-top:6px">${cMoney(lb.unpaid_cents)}</div>
+        <div class="sub">Total to send on Venmo</div>
+        ${vuser
+          ? `<a class="btn primary block cvenmo" href="https://venmo.com/u/${encodeURIComponent(vuser)}" target="_blank" rel="noopener">Pay ${cMoney(lb.unpaid_cents)} to @${esc(vuser)} on Venmo</a>
+             <div class="tiny" style="margin-top:6px">Put “Fellas Calcutta” in the Venmo note.</div>`
+          : `<div class="sub">Send ${cMoney(lb.unpaid_cents)} to Trice on Venmo with the note “Fellas Calcutta”.</div>`}
+      ` : `<div class="sub">You're all paid up ✓</div>`}
     </div>`;
     calcuttaLastBet = null;
   }
@@ -1444,8 +1448,8 @@ async function renderCalcutta() {
       const amount = Number($('#cbet-amount').value);
       const team = board.teams.find(t => t.id === teamId);
       try {
-        await api('/api/calcutta/bets', { method: 'POST', body: JSON.stringify({ team_id: teamId, amount }) });
-        calcuttaLastBet = { amount_cents: Math.round(amount * 100), color: team ? team.color : '' };
+        const resp = await api('/api/calcutta/bets', { method: 'POST', body: JSON.stringify({ team_id: teamId, amount }) });
+        calcuttaLastBet = { amount_cents: Math.round(amount * 100), color: team ? team.color : '', unpaid_cents: resp.my_unpaid_cents || 0 };
         renderCalcutta();
       } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
     };

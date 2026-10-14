@@ -176,7 +176,9 @@ router.post('/calcutta/bets', auth.requireAuth, (req, res) => {
   if (r.error) return res.status(400).json({ error: r.error });
   const broadcast = req.app.locals.broadcast;
   if (broadcast) broadcast({ type: 'tournament_updated' });
-  res.json({ ok: true, board: CAL.getBoard(t.id) });
+  const myBets = CAL.getMyBets(t.id, req.session.player_id);
+  const myUnpaid = myBets.filter(b => !b.paid).reduce((s, b) => s + b.amount_cents, 0);
+  res.json({ ok: true, board: CAL.getBoard(t.id), my_unpaid_cents: myUnpaid });
 });
 
 router.get('/schedule', auth.requireAuth, (req, res) => {
