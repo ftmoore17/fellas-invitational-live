@@ -373,6 +373,22 @@ function matchPairCard(m) {
       if (!byCourse[c]) byCourse[c] = [];
       byCourse[c].push(row);
     });
+    // Overall place: sort ALL rows by relPar ascending (nulls last), assign 1st, 2nd, etc.
+    const allSorted = [...m.rows].sort((a, b) => {
+      const ap = a.relPar == null ? 999 : a.relPar;
+      const bp = b.relPar == null ? 999 : b.relPar;
+      return ap - bp;
+    });
+    const placeById = new Map();
+    allSorted.forEach((row, i) => {
+      // Use pairingId or a unique key
+      const key = row.pairingId || row.color + row.teeTime;
+      if (!placeById.has(key)) placeById.set(key, i + 1);
+    });
+    const getPlace = (row) => {
+      const key = row.pairingId || row.color + row.teeTime;
+      return placeById.get(key);
+    };
     // Sort each course group by relPar ascending (nulls last)
     Object.values(byCourse).forEach(group => {
       group.sort((a, b) => {
@@ -388,7 +404,7 @@ function matchPairCard(m) {
       <div class="section-title" style="margin-top:10px;font-size:0.9em;color:var(--muted)">${esc(course)}</div>
       ${byCourse[course].map(row => {
         if (row.noCourse) return `<div class="paircard"><div class="phead"><span>${esc(row.teeTime || '')}</span><span>Course TBD</span></div></div>`;
-        return scrambleRowCard(row);
+        return scrambleRowCard(row, getPlace(row));
       }).join('')}
     `).join('')}`;
   }
@@ -400,15 +416,22 @@ function matchPairCard(m) {
     }).join('')}`;
 }
 
-function scrambleRowCard(ev) {
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function scrambleRowCard(ev, place) {
+  const score = ev.relPar == null ? '–' : fmtToPar(ev.relPar);
+  const scoreColor = ev.relPar == null ? '#8895a2' : ev.relPar < 0 ? '#16a34a' : ev.relPar > 0 ? '#dc2626' : '#666';
+  const placeBadge = place ? `<span style="font-size:0.75em;font-weight:700;color:#8895a2;margin-right:6px">${ordinal(place)}</span>` : '';
   return `
     <div class="paircard">
       <div class="phead"><span>${esc(ev.teeTime || '')}</span><span>${esc(ev.courseName || '')}</span></div>
       <div class="vs"><div class="side">
-        <div class="tlabel" style="color:${teamHex(ev.color)}">${esc(ev.color)}</div>
-        <div class="matchstatus">${ev.complete ? 'Final' : 'Thru ' + ev.thru}
-          <span class="through">${ev.relPar == null ? '' : 'To par ' + fmtToPar(ev.relPar)}</span>
-        </div>
+        <div class="tlabel" style="color:${teamHex(ev.color)}">${placeBadge}${esc(ev.color)}</div>
+        <div class="matchstatus" style="margin:2px 0">${ev.complete ? 'Final' : 'Thru ' + ev.thru}</div>
+        <div style="font-size:2em;font-weight:800;color:${scoreColor};line-height:1">${score}</div>
       </div></div>
     </div>`;
 }
