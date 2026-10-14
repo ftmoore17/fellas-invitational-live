@@ -24,6 +24,7 @@
 'use strict';
 
 const express = require('express');
+const crypto = require('crypto');
 const db = require('./db');
 const auth = require('./auth');
 const LB = require('./leaderboards');
@@ -211,6 +212,45 @@ router.post('/calcutta/bets', auth.requireAuth, (req, res) => {
   const myBets = CAL.getMyBets(t.id, who);
   const myUnpaid = myBets.filter(b => !b.paid).reduce((s, b) => s + b.amount_cents, 0);
   res.json({ ok: true, board: CAL.getBoard(t.id), my_unpaid_cents: myUnpaid });
+});
+
+// ---- Internal automation (Venmo watcher) ----
+// Guarded by INTERNAL_API_SECRET (Render env var). Lets the payment watcher
+// list unpaid bids and mark them paid after matching a Venmo receipt.
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || '';
+function requireInternal(req, res, next) {
+  if (!INTERNAL_SECRET) return res.status(503).json({ error: 'Internal API not configured' });
+  const got = String(req.get('X-Internal-Secret') || '');
+  const a = Buffer.from(got), b = Buffer.from(INTERNAL_SECRET);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
+}
+
+router.get('/internal/calcutta/pending', requireInternal, (req, res) => {
+  const t = currentTournament();
+  const board = CAL.getBoard(t.id);
+  const pending = [];
+  for (const tm of board.teams) {
+    for (const b of tm.bids) {
+      if (!b.paid) pending.push({ bid_id: b.id, name: b.name, amount_cents: b.amount_cents, team_color: tm.color });
+    }
+  }
+  res.json({ pending });
+});
+
+router.post('/internal/calcutta/mark-paid', requireInternal, (req, res) => {
+  const t = currentTournament();
+  const bid = db.prepare(`SELECT id, paid FROM calcutta_bids WHERE id = ? AND tournament_id = ?`)
+    .get(req.body && req.body.bid_id, t.id);
+  if (!bid) return res.status(404).json({ error: 'Bid not found' });
+  if (!bid.paid) {
+    db.prepare(`UPDATE calcutta_bids SET paid = 1 WHERE id = ?`).run(bid.id);
+    const broadcast = req.app.locals.broadcast;
+    if (broadcast) broadcast({ type: 'tournament_updated' });
+  }
+  res.json({ ok: true, already_paid: !!bid.paid });
 });
 
 router.get('/schedule', auth.requireAuth, (req, res) => {

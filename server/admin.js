@@ -547,13 +547,21 @@ router.post('/change-password', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Clear all scores (Admin Danger Zone — double-confirm in UI)
+// Clear all scores (Admin Danger Zone — double-confirm in UI).
+// Also deletes generated M6/M7 singles pairings so they fall back to
+// placeholder (TBD) cards; M1–M5 pairings are untouched.
 router.post('/clear-all-scores', (req, res) => {
+  const t = currentTournament();
   db.prepare(`DELETE FROM hole_scores`).run();
   db.prepare(`DELETE FROM scramble_scores`).run();
+  const m67 = db.prepare(`SELECT id FROM matches WHERE tournament_id = ? AND match_no IN (6, 7)`).all(t.id);
+  let pairingsCleared = 0;
+  for (const m of m67) {
+    pairingsCleared += db.prepare(`DELETE FROM pairings WHERE match_id = ?`).run(m.id).changes;
+  }
   const h = db.prepare(`SELECT COUNT(*) AS c FROM hole_scores`).get().c;
   const s = db.prepare(`SELECT COUNT(*) AS c FROM scramble_scores`).get().c;
-  res.json({ ok: true, hole_scores: h, scramble_scores: s });
+  res.json({ ok: true, hole_scores: h, scramble_scores: s, singles_pairings_cleared: pairingsCleared });
 });
 
 module.exports = router;

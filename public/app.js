@@ -1222,7 +1222,7 @@ async function adminSetup() {
   dz.style.borderColor = '#ca4747';
   dz.innerHTML = `
     <h2 style="color:#ca4747">Danger Zone</h2>
-    <div class="sub">Wipe all entered scores and reset the tournament to a pre-start state. This cannot be undone.</div>
+    <div class="sub">Wipe all entered scores and reset generated M6/M7 singles back to placeholders. This cannot be undone.</div>
     <button class="btn block" id="clearscores" style="background:#ca4747;color:#fff">Clear All Scores</button>
     <div class="okmsg hidden" id="clearmsg"></div>`;
   el.appendChild(dz);
@@ -1242,7 +1242,7 @@ async function adminSetup() {
     btn.disabled = true;
     try {
       const r = await api('/api/admin/clear-all-scores', { method: 'POST' });
-      msg.textContent = `All scores cleared ✓ (${r.hole_scores + r.scramble_scores} entries removed)`;
+      msg.textContent = `All scores cleared ✓ (${r.hole_scores + r.scramble_scores} entries removed)${r.singles_pairings_cleared ? ` — M6/M7 back to placeholders` : ''}`;
       msg.classList.remove('hidden');
       btn.textContent = 'Clear All Scores';
       btn.style.background = '#ca4747';
