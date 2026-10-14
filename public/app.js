@@ -414,7 +414,7 @@ function ordinal(n) {
 function scrambleRowCard(ev, place) {
   const score = ev.relPar == null ? '–' : fmtToPar(ev.relPar);
   const scoreColor = ev.relPar == null ? '#8895a2' : ev.relPar < 0 ? '#16a34a' : ev.relPar > 0 ? '#dc2626' : '#666';
-  const placeBadge = place ? `<span style="font-size:0.75em;font-weight:700;color:#8895a2;margin-right:6px">${ordinal(place)}</span>` : '';
+  const placeBadge = place ? `<span style="font-size:1.3em;font-weight:800;color:#1a2332;margin-right:8px">${ordinal(place)}</span>` : '';
   return `
     <div class="paircard">
       <div class="phead"><span>${esc(ev.teeTime || '')}</span><span>${esc(ev.courseName || '')}</span></div>
