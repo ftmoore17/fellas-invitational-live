@@ -155,15 +155,19 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 -- Calcutta auction bids (Thursday night). One bid per bidder per team;
 -- the bidder's share of the team = amount / team total.
+-- Bidders are players (bidder_player_id) or spectators who typed a name
+-- (bidder_name with NULL bidder_player_id).
 CREATE TABLE IF NOT EXISTS calcutta_bids (
   id INTEGER PRIMARY KEY,
   tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
-  bidder_player_id INTEGER NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  bidder_player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+  bidder_name TEXT,
   team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
   amount_cents INTEGER NOT NULL DEFAULT 0,
   paid INTEGER NOT NULL DEFAULT 1,               -- 1 = Venmo verified by admin
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE (tournament_id, bidder_player_id, team_id)
+  UNIQUE (tournament_id, bidder_player_id, team_id),
+  CHECK ((bidder_player_id IS NULL) != (bidder_name IS NULL))
 );
 `;
 
@@ -180,6 +184,29 @@ if (!_tcols.includes('venmo_username')) {
 }
 if (!_tcols.includes('calcutta_open')) {
   db.exec(`ALTER TABLE tournaments ADD COLUMN calcutta_open INTEGER DEFAULT 1`);
+}
+// Spectator Calcutta bids: typed bidder_name with NULL bidder_player_id.
+// Rebuilds calcutta_bids to relax the NOT NULL on bidder_player_id.
+const _bcols = db.prepare(`PRAGMA table_info(calcutta_bids)`).all().map(c => c.name);
+if (!_bcols.includes('bidder_name')) {
+  db.exec(`
+    CREATE TABLE calcutta_bids_new (
+      id INTEGER PRIMARY KEY,
+      tournament_id INTEGER NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
+      bidder_player_id INTEGER REFERENCES players(id) ON DELETE CASCADE,
+      bidder_name TEXT,
+      team_id INTEGER NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+      amount_cents INTEGER NOT NULL DEFAULT 0,
+      paid INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE (tournament_id, bidder_player_id, team_id),
+      CHECK ((bidder_player_id IS NULL) != (bidder_name IS NULL))
+    );
+    INSERT INTO calcutta_bids_new (id, tournament_id, bidder_player_id, team_id, amount_cents, paid, created_at)
+      SELECT id, tournament_id, bidder_player_id, team_id, amount_cents, paid, created_at FROM calcutta_bids;
+    DROP TABLE calcutta_bids;
+    ALTER TABLE calcutta_bids_new RENAME TO calcutta_bids;
+  `);
 }
 
 module.exports = db;

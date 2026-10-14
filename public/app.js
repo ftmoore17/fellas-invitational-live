@@ -1270,16 +1270,19 @@ async function renderCalcutta() {
   el.innerHTML = `<div class="card center tiny">Loading Calcutta…</div>`;
   const isAdmin = state.me.role === 'admin';
   const isPlayer = state.me.role === 'player';
+  const isSpectator = state.me.role === 'spectator';
+  const specName = isSpectator ? (localStorage.getItem('fellas_spec_name') || '').trim() : '';
   let board, payoutData, players = [], mine = [];
   try {
     const reqs = [api('/api/calcutta'), api('/api/calcutta/payouts')];
     if (isAdmin) reqs.push(api('/api/admin/players'));
     if (isPlayer) reqs.push(api('/api/calcutta/mine'));
+    if (isSpectator && specName) reqs.push(api('/api/calcutta/mine?name=' + encodeURIComponent(specName)));
     const out = await Promise.all(reqs);
     board = out[0]; payoutData = out[1];
     let i = 2;
     if (isAdmin) players = out[i++];
-    if (isPlayer) mine = out[i++].bets;
+    if (isPlayer || (isSpectator && specName)) mine = out[i++].bets;
   } catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
 
   if (!board.teams.some(t => t.id === calcuttaTeamId)) {
@@ -1305,20 +1308,24 @@ async function renderCalcutta() {
         <div class="cpool-total" style="font-size:26px;margin-top:6px">${cMoney(lb.unpaid_cents)}</div>
         <div class="sub">Total to send on Venmo</div>
         ${vuser
-          ? `<a class="btn primary block cvenmo" href="https://venmo.com/u/${encodeURIComponent(vuser)}" target="_blank" rel="noopener">Pay ${cMoney(lb.unpaid_cents)} to @${esc(vuser)} on Venmo</a>
-             <div class="tiny" style="margin-top:6px">Put “Fellas Calcutta” in the Venmo note.</div>`
+          ? `<a class="btn primary block cvenmo" id="cvenmo-pay" href="https://venmo.com/u/${encodeURIComponent(vuser)}"
+               data-deep="venmo://paycharge?txn=pay&recipients=${encodeURIComponent(vuser)}&amount=${(lb.unpaid_cents / 100).toFixed(2)}&note=${encodeURIComponent('Fellas Calcutta')}"
+               data-web="https://venmo.com/u/${encodeURIComponent(vuser)}" target="_blank" rel="noopener">Pay ${cMoney(lb.unpaid_cents)} to @${esc(vuser)} on Venmo</a>
+             <div class="tiny" style="margin-top:6px">Opens your Venmo app with the amount filled in — put “Fellas Calcutta” in the note.</div>`
           : `<div class="sub">Send ${cMoney(lb.unpaid_cents)} to Trice on Venmo with the note “Fellas Calcutta”.</div>`}
       ` : `<div class="sub">You're all paid up ✓</div>`}
     </div>`;
     calcuttaLastBet = null;
   }
 
-  if (isPlayer) {
+  if (isPlayer || isSpectator) {
     const myTotal = mine.reduce((s, b) => s + b.amount_cents, 0);
+    const noName = isSpectator && !specName;
     html += `
     <div class="card">
       <h2>Your bets <span class="tiny">· ${cMoney(myTotal)} total</span></h2>
-      ${mine.length === 0 ? `<div class="sub">No bets yet — pick a team below.</div>` : mine.map(b => `
+      ${noName ? `<div class="sub">Type your name below to see and track your bets.</div>`
+        : mine.length === 0 ? `<div class="sub">No bets yet — pick a team below.</div>` : mine.map(b => `
         <div class="cbid">
           <div class="cbid-main"><b><span class="cdot" style="background:${teamHex(b.color)}"></span>${esc(b.color)}</b><span class="tiny">${b.pct}% of team</span></div>
           <div class="cbid-amt">${cMoney(b.amount_cents)} ${b.paid ? '<span class="cpaidmark">✓ paid</span>' : '<span class="cpending">pending</span>'}</div>
@@ -1329,7 +1336,8 @@ async function renderCalcutta() {
     <div class="card">
       <h2>Place a bet</h2>
       <div class="sub">Own a piece of a team — your % of the team wins 100% of the pool if they win it all. You'll pay on Venmo right after.</div>
-      <div class="cform crow">
+      <div class="cform${isSpectator ? '' : ' crow'}">
+        ${isSpectator ? `<label>Your name<input id="cbet-name" type="text" placeholder="e.g. Mike Smith" value="${esc(specName)}" maxlength="40" autocomplete="name"></label>` : ''}
         <label>Team<select id="cbet-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)} — ${cMoney(t.total_cents)} in</option>`).join('')}</select></label>
         <label>Amount $<input id="cbet-amount" type="number" min="1" step="1" placeholder="100"></label>
       </div>
@@ -1425,7 +1433,17 @@ async function renderCalcutta() {
 
   el.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => { calcuttaTeamId = Number(b.dataset.ct); renderCalcutta(); });
 
-  if (isPlayer && board.open) {
+  // Venmo pay button: try the Venmo app first (deep link with amount + note
+  // prefilled), fall back to venmo.com if the app isn't installed.
+  const vp = $('#cvenmo-pay');
+  if (vp) vp.addEventListener('click', (e) => {
+    e.preventDefault();
+    const t0 = Date.now();
+    window.location.href = vp.dataset.deep;
+    setTimeout(() => { if (Date.now() - t0 < 1800) window.location.href = vp.dataset.web; }, 1000);
+  });
+
+  if ((isPlayer || isSpectator) && board.open) {
     const updPreview = () => {
       const team = board.teams.find(t => t.id === Number($('#cbet-team').value));
       const amt = Number($('#cbet-amount').value) || 0;
@@ -1448,8 +1466,14 @@ async function renderCalcutta() {
       const teamId = Number($('#cbet-team').value);
       const amount = Number($('#cbet-amount').value);
       const team = board.teams.find(t => t.id === teamId);
+      let bidder_name;
+      if (isSpectator) {
+        bidder_name = (($('#cbet-name') || {}).value || '').trim().replace(/\s+/g, ' ');
+        if (!bidder_name) { err.textContent = 'Type your name to place a bet'; err.classList.remove('hidden'); return; }
+        localStorage.setItem('fellas_spec_name', bidder_name);
+      }
       try {
-        const resp = await api('/api/calcutta/bets', { method: 'POST', body: JSON.stringify({ team_id: teamId, amount }) });
+        const resp = await api('/api/calcutta/bets', { method: 'POST', body: JSON.stringify({ team_id: teamId, amount, bidder_name }) });
         calcuttaLastBet = { amount_cents: Math.round(amount * 100), color: team ? team.color : '', unpaid_cents: resp.my_unpaid_cents || 0 };
         renderCalcutta();
       } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }

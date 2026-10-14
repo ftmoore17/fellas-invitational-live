@@ -154,29 +154,61 @@ router.get('/calcutta/payouts', auth.requireAuth, (req, res) => {
   res.json({ payouts: CAL.getPayouts(t.id) });
 });
 
-// The logged-in player's own bets.
+// The logged-in bidder's own bets. Players match by identity; spectators
+// pass ?name= to match their typed name.
 router.get('/calcutta/mine', auth.requireAuth, (req, res) => {
   const t = currentTournament();
-  if (!req.session || req.session.role !== 'player') return res.json({ bets: [] });
-  res.json({ bets: CAL.getMyBets(t.id, req.session.player_id) });
+  const role = req.session && req.session.role;
+  if (role === 'player') return res.json({ bets: CAL.getMyBets(t.id, { playerId: req.session.player_id }) });
+  if (role === 'spectator' && req.query.name) {
+    return res.json({ bets: CAL.getMyBets(t.id, { name: String(req.query.name) }) });
+  }
+  return res.json({ bets: [] });
 });
 
-// A claimed player bets on a team. Adds to any existing bid on that team.
-// Bets start unpaid; admin marks paid after verifying Venmo.
+// Light anti-spam for spectator betting: max 20 bets/min per IP.
+const _betHits = new Map();
+function spectatorBetAllowed(ip) {
+  const now = Date.now();
+  const hits = (_betHits.get(ip) || []).filter(ts => now - ts < 60000);
+  if (hits.length >= 20) return false;
+  hits.push(now);
+  _betHits.set(ip, hits);
+  if (_betHits.size > 1000) {
+    for (const [k, v] of _betHits) if (v.every(ts => now - ts >= 60000)) _betHits.delete(k);
+  }
+  return true;
+}
+
+// A claimed player — or a spectator with a typed name — bets on a team.
+// Adds to any existing bid on that team. Bets start unpaid; admin marks
+// paid after verifying Venmo.
 router.post('/calcutta/bets', auth.requireAuth, (req, res) => {
   const t = currentTournament();
-  if (!req.session || req.session.role !== 'player') {
+  const role = req.session && req.session.role;
+  const isPlayer = role === 'player';
+  const isSpectator = role === 'spectator';
+  if (!isPlayer && !isSpectator) {
     return res.status(403).json({ error: 'Claim your player identity to bet' });
   }
   const live = CAL.getBoard(t.id);
   if (!live.open) return res.status(403).json({ error: 'Calcutta betting is closed' });
   const { team_id, amount } = req.body || {};
   const cents = Math.round(Number(amount) * 100);
-  const r = CAL.placeBet(t.id, req.session.player_id, team_id, cents);
+  let who;
+  if (isPlayer) {
+    who = { playerId: req.session.player_id };
+  } else {
+    if (!spectatorBetAllowed(req.ip)) {
+      return res.status(429).json({ error: 'Slow down — too many bets at once' });
+    }
+    who = { name: req.body && req.body.bidder_name };
+  }
+  const r = CAL.placeBet(t.id, who, team_id, cents);
   if (r.error) return res.status(400).json({ error: r.error });
   const broadcast = req.app.locals.broadcast;
   if (broadcast) broadcast({ type: 'tournament_updated' });
-  const myBets = CAL.getMyBets(t.id, req.session.player_id);
+  const myBets = CAL.getMyBets(t.id, who);
   const myUnpaid = myBets.filter(b => !b.paid).reduce((s, b) => s + b.amount_cents, 0);
   res.json({ ok: true, board: CAL.getBoard(t.id), my_unpaid_cents: myUnpaid });
 });

@@ -9,6 +9,9 @@
  * Payouts: the total pool is split across 1st/2nd/3rd place teams by
  * the tournament's calcutta_payouts JSON (default 100/0/0 winner-take-all); each
  * team's prize is divided among its bidders by their share of the team.
+ *
+ * Bidders are either players (bidder_player_id) or spectators who typed a
+ * name (bidder_name, player id NULL). One row per bidder per team either way.
  */
 'use strict';
 
@@ -32,9 +35,9 @@ function getBoard(tournamentId) {
     `SELECT id, color, sort_order FROM teams WHERE tournament_id = ? ORDER BY sort_order, id`
   ).all(tournamentId);
   const bids = db.prepare(
-    `SELECT b.id, b.team_id, b.amount_cents, b.paid, p.id AS player_id, p.name AS player_name
-     FROM calcutta_bids b JOIN players p ON p.id = b.bidder_player_id
-     WHERE b.tournament_id = ? ORDER BY p.name`
+    `SELECT b.id, b.team_id, b.amount_cents, b.paid, p.id AS player_id, COALESCE(p.name, b.bidder_name) AS player_name
+     FROM calcutta_bids b LEFT JOIN players p ON p.id = b.bidder_player_id
+     WHERE b.tournament_id = ? ORDER BY player_name`
   ).all(tournamentId);
 
   const byTeam = new Map(teams.map(t => [t.id, []]));
@@ -112,35 +115,63 @@ function getPayouts(tournamentId) {
     .filter(Boolean);
 }
 
-/** A player bets on a team from the app. Adds to any existing bid on that
- *  team (one cell per bidder per team, like the spreadsheet). New money
- *  starts unpaid — admin flips it to paid after the Venmo comes through. */
-function placeBet(tournamentId, playerId, teamId, amountCents) {
+/** Normalize a typed spectator bidder name. */
+function normalizeBidderName(n) {
+  return String(n == null ? '' : n).trim().replace(/\s+/g, ' ').slice(0, 40);
+}
+
+/** A bidder bets on a team from the app. `who` is { playerId } or { name }
+ *  (spectator). Adds to any existing bid on that team (one cell per bidder
+ *  per team, like the spreadsheet). New money starts unpaid — admin flips
+ *  it to paid after the Venmo comes through. */
+function placeBet(tournamentId, who, teamId, amountCents) {
   const team = db.prepare(`SELECT id FROM teams WHERE id = ? AND tournament_id = ?`).get(teamId, tournamentId);
-  const player = db.prepare(`SELECT id FROM players WHERE id = ? AND tournament_id = ?`).get(playerId, tournamentId);
-  if (!team || !player) return { error: 'Team or player not found' };
+  if (!team) return { error: 'Team not found' };
   if (!Number.isFinite(amountCents) || amountCents <= 0) return { error: 'Amount must be positive' };
+  if (who && who.playerId) {
+    const player = db.prepare(`SELECT id FROM players WHERE id = ? AND tournament_id = ?`).get(who.playerId, tournamentId);
+    if (!player) return { error: 'Player not found' };
+    const existing = db.prepare(
+      `SELECT * FROM calcutta_bids WHERE tournament_id = ? AND bidder_player_id = ? AND team_id = ?`
+    ).get(tournamentId, who.playerId, teamId);
+    if (existing) {
+      db.prepare(`UPDATE calcutta_bids SET amount_cents = amount_cents + ? WHERE id = ?`).run(amountCents, existing.id);
+    } else {
+      db.prepare(
+        `INSERT INTO calcutta_bids (tournament_id, bidder_player_id, team_id, amount_cents, paid)
+         VALUES (?, ?, ?, ?, 0)`
+      ).run(tournamentId, who.playerId, teamId, amountCents);
+    }
+    return { ok: true };
+  }
+  const name = normalizeBidderName(who && who.name);
+  if (!name) return { error: 'Enter your name to bet' };
   const existing = db.prepare(
-    `SELECT * FROM calcutta_bids WHERE tournament_id = ? AND bidder_player_id = ? AND team_id = ?`
-  ).get(tournamentId, playerId, teamId);
+    `SELECT * FROM calcutta_bids WHERE tournament_id = ? AND team_id = ? AND bidder_player_id IS NULL AND LOWER(bidder_name) = LOWER(?)`
+  ).get(tournamentId, teamId, name);
   if (existing) {
     db.prepare(`UPDATE calcutta_bids SET amount_cents = amount_cents + ? WHERE id = ?`).run(amountCents, existing.id);
   } else {
     db.prepare(
-      `INSERT INTO calcutta_bids (tournament_id, bidder_player_id, team_id, amount_cents, paid)
-       VALUES (?, ?, ?, ?, 0)`
-    ).run(tournamentId, playerId, teamId, amountCents);
+      `INSERT INTO calcutta_bids (tournament_id, bidder_player_id, bidder_name, team_id, amount_cents, paid)
+       VALUES (?, NULL, ?, ?, ?, 0)`
+    ).run(tournamentId, name, teamId, amountCents);
   }
   return { ok: true };
 }
 
-/** One player's own bids, with team colors and % of team. */
-function getMyBets(tournamentId, playerId) {
+/** One bidder's own bets, with team colors and % of team. `who` is
+ *  { playerId } or { name } (spectator, matched case-insensitively). */
+function getMyBets(tournamentId, who) {
   const board = getBoard(tournamentId);
+  const nameLower = who && !who.playerId ? normalizeBidderName(who.name).toLowerCase() : null;
   const mine = [];
   for (const t of board.teams) {
     for (const b of t.bids) {
-      if (b.player_id === playerId) {
+      const isMine = who.playerId
+        ? b.player_id === who.playerId
+        : (b.player_id == null && nameLower && (b.name || '').toLowerCase() === nameLower);
+      if (isMine) {
         mine.push({ team_id: t.id, color: t.color, amount_cents: b.amount_cents, pct: b.pct, paid: b.paid });
       }
     }
