@@ -273,3 +273,7 @@ input.camt.cerr { border-color: var(--red); }
 .cpay { margin-top: 10px; }
 .cpay-head { display: flex; align-items: center; gap: 6px; padding: 8px 0; border-top: 1px solid #eef2f7; }
 .cpay-head b:last-child { margin-left: auto; }
+
+/* ---------- calcutta: betting ---------- */
+.cconfirm { border-color: var(--gold); }
+.cvenmo { text-decoration: none; text-align: center; }

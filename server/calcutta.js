@@ -73,6 +73,8 @@ function getBoard(tournamentId) {
     pending_cents: poolCents - paidCents,
     payouts: getPayoutSplit(tournament),
     bid_count: bids.length,
+    open: tournament.calcutta_open !== 0,
+    venmo_username: tournament.venmo_username || null,
   };
 }
 
@@ -109,4 +111,40 @@ function getPayouts(tournamentId) {
     .filter(Boolean);
 }
 
-module.exports = { getBoard, getPayouts, getPayoutSplit, DEFAULT_PAYOUTS };
+/** A player bets on a team from the app. Adds to any existing bid on that
+ *  team (one cell per bidder per team, like the spreadsheet). New money
+ *  starts unpaid — admin flips it to paid after the Venmo comes through. */
+function placeBet(tournamentId, playerId, teamId, amountCents) {
+  const team = db.prepare(`SELECT id FROM teams WHERE id = ? AND tournament_id = ?`).get(teamId, tournamentId);
+  const player = db.prepare(`SELECT id FROM players WHERE id = ? AND tournament_id = ?`).get(playerId, tournamentId);
+  if (!team || !player) return { error: 'Team or player not found' };
+  if (!Number.isFinite(amountCents) || amountCents <= 0) return { error: 'Amount must be positive' };
+  const existing = db.prepare(
+    `SELECT * FROM calcutta_bids WHERE tournament_id = ? AND bidder_player_id = ? AND team_id = ?`
+  ).get(tournamentId, playerId, teamId);
+  if (existing) {
+    db.prepare(`UPDATE calcutta_bids SET amount_cents = amount_cents + ? WHERE id = ?`).run(amountCents, existing.id);
+  } else {
+    db.prepare(
+      `INSERT INTO calcutta_bids (tournament_id, bidder_player_id, team_id, amount_cents, paid)
+       VALUES (?, ?, ?, ?, 0)`
+    ).run(tournamentId, playerId, teamId, amountCents);
+  }
+  return { ok: true };
+}
+
+/** One player's own bids, with team colors and % of team. */
+function getMyBets(tournamentId, playerId) {
+  const board = getBoard(tournamentId);
+  const mine = [];
+  for (const t of board.teams) {
+    for (const b of t.bids) {
+      if (b.player_id === playerId) {
+        mine.push({ team_id: t.id, color: t.color, amount_cents: b.amount_cents, pct: b.pct, paid: b.paid });
+      }
+    }
+  }
+  return mine;
+}
+
+module.exports = { getBoard, getPayouts, getPayoutSplit, placeBet, getMyBets, DEFAULT_PAYOUTS };

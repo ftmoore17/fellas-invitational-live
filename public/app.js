@@ -1261,18 +1261,24 @@ async function adminSetup() {
    Venmo before entering a bid (paid flag); share of team = bid / team total. */
 
 let calcuttaTeamId = null;
+let calcuttaLastBet = null; // {amount_cents, color} — shown with the Venmo prompt after betting
 const cMoney = c => '$' + (c / 100).toLocaleString('en-US', { maximumFractionDigits: (c % 100) ? 2 : 0 });
 
 async function renderCalcutta() {
   const el = $('#tab-content');
   el.innerHTML = `<div class="card center tiny">Loading Calcutta…</div>`;
   const isAdmin = state.me.role === 'admin';
-  let board, payoutData, players = [];
+  const isPlayer = state.me.role === 'player';
+  let board, payoutData, players = [], mine = [];
   try {
     const reqs = [api('/api/calcutta'), api('/api/calcutta/payouts')];
     if (isAdmin) reqs.push(api('/api/admin/players'));
+    if (isPlayer) reqs.push(api('/api/calcutta/mine'));
     const out = await Promise.all(reqs);
-    board = out[0]; payoutData = out[1]; if (isAdmin) players = out[2];
+    board = out[0]; payoutData = out[1];
+    let i = 2;
+    if (isAdmin) players = out[i++];
+    if (isPlayer) mine = out[i++].bets;
   } catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
 
   if (!board.teams.some(t => t.id === calcuttaTeamId)) {
@@ -1285,8 +1291,52 @@ async function renderCalcutta() {
       <div class="sub">Calcutta Pool</div>
       <div class="cpool-total">${cMoney(board.pool_cents)}</div>
       <div class="tiny">${board.bid_count} bid${board.bid_count === 1 ? '' : 's'} · Paid ${cMoney(board.paid_cents)}${board.pending_cents > 0 ? ` · <span class="cpending">Pending ${cMoney(board.pending_cents)}</span>` : ''}</div>
-    </div>
+    </div>`;
 
+  if (calcuttaLastBet) {
+    const lb = calcuttaLastBet;
+    const vuser = board.venmo_username;
+    html += `
+    <div class="card cconfirm">
+      <h2>Bet placed ✓</h2>
+      <div class="sub">${cMoney(lb.amount_cents)} on <b>${esc(lb.color)}</b> — now send the money on Venmo to lock it in.</div>
+      ${vuser
+        ? `<a class="btn primary block cvenmo" href="https://venmo.com/u/${encodeURIComponent(vuser)}" target="_blank" rel="noopener">Pay ${cMoney(lb.amount_cents)} to @${esc(vuser)} on Venmo</a>
+           <div class="tiny" style="margin-top:6px">Put “Calcutta ${esc(lb.color)}” in the Venmo note.</div>`
+        : `<div class="sub">Send ${cMoney(lb.amount_cents)} to Trice on Venmo with the note “Calcutta ${esc(lb.color)}”.</div>`}
+    </div>`;
+    calcuttaLastBet = null;
+  }
+
+  if (isPlayer) {
+    const myTotal = mine.reduce((s, b) => s + b.amount_cents, 0);
+    html += `
+    <div class="card">
+      <h2>Your bets <span class="tiny">· ${cMoney(myTotal)} total</span></h2>
+      ${mine.length === 0 ? `<div class="sub">No bets yet — pick a team below.</div>` : mine.map(b => `
+        <div class="cbid">
+          <div class="cbid-main"><b><span class="cdot" style="background:${teamHex(b.color)}"></span>${esc(b.color)}</b><span class="tiny">${b.pct}% of team</span></div>
+          <div class="cbid-amt">${cMoney(b.amount_cents)} ${b.paid ? '<span class="cpaidmark">✓ paid</span>' : '<span class="cpending">pending</span>'}</div>
+        </div>`).join('')}
+    </div>`;
+    if (board.open) {
+      html += `
+    <div class="card">
+      <h2>Place a bet</h2>
+      <div class="sub">Own a piece of a team — your % of the team wins 100% of the pool if they win it all. You'll pay on Venmo right after.</div>
+      <div class="cform crow">
+        <label>Team<select id="cbet-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)}</option>`).join('')}</select></label>
+        <label>Amount $<input id="cbet-amount" type="number" min="1" step="1" placeholder="100"></label>
+      </div>
+      <button class="btn gold block" id="cbet-go">Bet &amp; pay on Venmo</button>
+      <div class="err hidden" id="cbet-err"></div>
+    </div>`;
+    } else {
+      html += `<div class="card"><div class="sub">Betting is closed for this Calcutta.</div></div>`;
+    }
+  }
+
+  html += `
     <div class="mpill-row" style="margin:12px 0">
       ${board.teams.map(t => `<button class="mpill${t.id === calcuttaTeamId ? ' active' : ''}" data-ct="${t.id}"><span class="cdot" style="background:${teamHex(t.color)}"></span>${esc(t.color)} <b>${cMoney(t.total_cents)}</b></button>`).join('')}
     </div>`;
@@ -1324,6 +1374,17 @@ async function renderCalcutta() {
   if (isAdmin) {
     html += `
     <div class="card">
+      <h2>Calcutta settings</h2>
+      <label class="ccheck"><input id="cs-open" type="checkbox"${board.open ? ' checked' : ''}> Player betting open</label>
+      <div class="sub">Your Venmo username — players get a pay button with it after betting.</div>
+      <div class="cform crow" style="align-items:flex-end">
+        <label style="flex:1">@<input id="cs-venmo" type="text" placeholder="your-venmo-name" value="${esc(board.venmo_username || '')}" autocapitalize="none"></label>
+        <button class="btn secondary" id="cs-save" style="margin:6px 0">Save</button>
+      </div>
+      <div class="err hidden" id="cs-err"></div>
+      <div class="okmsg hidden" id="cs-ok"></div>
+    </div>
+    <div class="card">
       <h2>Enter a bid</h2>
       <div class="sub">Verify the bidder's Venmo <b>before</b> entering — leave Paid checked once you've confirmed it.</div>
       <div class="cform">
@@ -1358,7 +1419,33 @@ async function renderCalcutta() {
 
   el.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => { calcuttaTeamId = Number(b.dataset.ct); renderCalcutta(); });
 
+  if (isPlayer && board.open) {
+    $('#cbet-go').onclick = async () => {
+      const err = $('#cbet-err'); err.classList.add('hidden');
+      const teamId = Number($('#cbet-team').value);
+      const amount = Number($('#cbet-amount').value);
+      const team = board.teams.find(t => t.id === teamId);
+      try {
+        await api('/api/calcutta/bets', { method: 'POST', body: JSON.stringify({ team_id: teamId, amount }) });
+        calcuttaLastBet = { amount_cents: Math.round(amount * 100), color: team ? team.color : '' };
+        renderCalcutta();
+      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+    };
+  }
+
   if (isAdmin) {
+    $('#cs-save').onclick = async () => {
+      const err = $('#cs-err'), ok = $('#cs-ok');
+      err.classList.add('hidden'); ok.classList.add('hidden');
+      try {
+        await api('/api/admin/calcutta/settings', { method: 'PUT', body: JSON.stringify({
+          open: $('#cs-open').checked,
+          venmo_username: $('#cs-venmo').value,
+        }) });
+        ok.textContent = 'Settings saved ✓'; ok.classList.remove('hidden');
+        renderCalcutta();
+      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+    };
     el.querySelectorAll('.camt').forEach(inp => {
       inp.onchange = async () => {
         try {

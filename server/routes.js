@@ -154,6 +154,31 @@ router.get('/calcutta/payouts', auth.requireAuth, (req, res) => {
   res.json({ payouts: CAL.getPayouts(t.id) });
 });
 
+// The logged-in player's own bets.
+router.get('/calcutta/mine', auth.requireAuth, (req, res) => {
+  const t = currentTournament();
+  if (!req.session || req.session.role !== 'player') return res.json({ bets: [] });
+  res.json({ bets: CAL.getMyBets(t.id, req.session.player_id) });
+});
+
+// A claimed player bets on a team. Adds to any existing bid on that team.
+// Bets start unpaid; admin marks paid after verifying Venmo.
+router.post('/calcutta/bets', auth.requireAuth, (req, res) => {
+  const t = currentTournament();
+  if (!req.session || req.session.role !== 'player') {
+    return res.status(403).json({ error: 'Claim your player identity to bet' });
+  }
+  const live = CAL.getBoard(t.id);
+  if (!live.open) return res.status(403).json({ error: 'Calcutta betting is closed' });
+  const { team_id, amount } = req.body || {};
+  const cents = Math.round(Number(amount) * 100);
+  const r = CAL.placeBet(t.id, req.session.player_id, team_id, cents);
+  if (r.error) return res.status(400).json({ error: r.error });
+  const broadcast = req.app.locals.broadcast;
+  if (broadcast) broadcast({ type: 'tournament_updated' });
+  res.json({ ok: true, board: CAL.getBoard(t.id) });
+});
+
 router.get('/schedule', auth.requireAuth, (req, res) => {
   const t = currentTournament();
   const playerId = req.session.role === 'player' ? req.session.player_id : null;

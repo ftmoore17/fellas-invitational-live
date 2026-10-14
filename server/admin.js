@@ -169,6 +169,24 @@ router.put('/calcutta/payouts', (req, res) => {
   res.json({ ok: true });
 });
 
+// Calcutta settings: open/close player betting, Venmo username for payments.
+router.put('/calcutta/settings', (req, res) => {
+  const t = currentTournament();
+  const { open, venmo_username } = req.body || {};
+  const sets = [], vals = [];
+  if (open !== undefined) { sets.push('calcutta_open = ?'); vals.push(open ? 1 : 0); }
+  if (venmo_username !== undefined) {
+    const u = String(venmo_username).trim().replace(/^@/, '');
+    if (u && !/^[A-Za-z0-9._-]{3,30}$/.test(u)) {
+      return res.status(400).json({ error: 'That Venmo username looks invalid' });
+    }
+    sets.push('venmo_username = ?'); vals.push(u || null);
+  }
+  if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+  db.prepare(`UPDATE tournaments SET ${sets.join(', ')} WHERE id = ?`).run(...vals, t.id);
+  res.json({ ok: true });
+});
+
 // ------------------------------------------------------------------ teams
 
 router.get('/teams', (req, res) => {

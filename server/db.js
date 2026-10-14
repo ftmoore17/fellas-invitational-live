@@ -175,5 +175,11 @@ if (!_tcols.includes('calcutta_payouts')) {
   // JSON: {"1":100,"2":0,"3":0} — % of the (paid) pool to 1st/2nd/3rd place teams (winner-take-all default).
   db.exec(`ALTER TABLE tournaments ADD COLUMN calcutta_payouts TEXT`);
 }
+if (!_tcols.includes('venmo_username')) {
+  db.exec(`ALTER TABLE tournaments ADD COLUMN venmo_username TEXT`);
+}
+if (!_tcols.includes('calcutta_open')) {
+  db.exec(`ALTER TABLE tournaments ADD COLUMN calcutta_open INTEGER DEFAULT 1`);
+}
 
 module.exports = db;
