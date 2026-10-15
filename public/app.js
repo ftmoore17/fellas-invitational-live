@@ -902,7 +902,7 @@ function matchDetailHtml(format, r) {
       + holeChips(pl.holes || [], true, flags)
       + `<div class="dtotal">Total ${g} gross · ${nt} net</div>`;
   }).join('');
-  bout += `<div class="dsub">Highlighted nets are the ones counted — they add up to the pair's team net score.</div>`;
+  bout += `<div class="dsub">Highlighted nets are the ones counted — they add up to the pair's net score.</div>`;
   return bout;
 }
 
