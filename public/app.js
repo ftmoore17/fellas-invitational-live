@@ -70,7 +70,9 @@ function connectWS() {
     let msg = null;
     try { msg = JSON.parse(ev.data); } catch { return; }
     if (msg.type === 'scores_updated' || msg.type === 'tournament_updated') {
-      refreshCurrentTab();
+      // Don't yank the Admin tab mid-edit (it would wipe typed input and can
+      // race the save confirmations); admin actions confirm and re-render themselves.
+      if (state.tab !== 'admin') refreshCurrentTab();
     }
   };
   ws.onclose = () => {
@@ -1220,13 +1222,15 @@ async function adminSetup() {
   $('#scodesave').onclick = async () => {
     try {
       await api(`/api/admin/tournaments/${t.id}`, { method: 'PUT', body: JSON.stringify({ spectator_code: $('#scode').value.trim() }) });
-      const ok = $('#sok'); ok.textContent = 'Spectator code saved ✓'; ok.classList.remove('hidden');
+      const ok = $('#sok');
+      if (ok) { ok.textContent = 'Spectator code saved ✓'; ok.classList.remove('hidden'); }
     } catch (e) { alert(e.message); }
   };
   $('#cpwgo').onclick = async () => {
     try {
       await api('/api/admin/change-password', { method: 'POST', body: JSON.stringify({ current: $('#cpw0').value, next: $('#cpw1').value }) });
-      const ok = $('#sok'); ok.textContent = 'Password changed ✓'; ok.classList.remove('hidden');
+      const ok2 = $('#sok');
+      if (ok2) { ok2.textContent = 'Password changed ✓'; ok2.classList.remove('hidden'); }
     } catch (e) { alert(e.message); }
   };
   // Danger Zone: Clear all scores (double confirmation required)
