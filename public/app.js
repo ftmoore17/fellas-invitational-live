@@ -1043,12 +1043,12 @@ async function renderAdmin() {
     return;
   }
   const a = state.admin;
-  const tabs = [['players', 'Players'], ['teams', 'Teams'], ['courses', 'Courses'], ['matches', 'Matches'], ['prizes', 'Prizes'], ['export', 'Score Export'], ['setup', 'Setup']];
+  const tabs = [['players', 'Players'], ['teams', 'Teams'], ['courses', 'Courses'], ['strokes', 'Strokes'], ['matches', 'Matches'], ['prizes', 'Prizes'], ['export', 'Score Export'], ['setup', 'Setup']];
   el.innerHTML = `
     <div class="admin-nav">${tabs.map(([k, l]) => `<button class="admintab ${a.section === k ? 'active' : ''}" data-s="${k}">${l}</button>`).join('')}</div>
     <div id="admin-body"><div class="card center tiny">Loading…</div></div>`;
   $$('#tab-content .admintab').forEach(b => b.onclick = () => { state.admin.section = b.dataset.s; renderAdmin(); });
-  ({ players: adminPlayers, teams: adminTeams, courses: adminCourses, matches: adminMatches, prizes: adminPrizes, export: adminExport, setup: adminSetup })[a.section]();
+  ({ players: adminPlayers, teams: adminTeams, courses: adminCourses, strokes: adminStrokes, matches: adminMatches, prizes: adminPrizes, export: adminExport, setup: adminSetup })[a.section]();
 }
 
 async function adminPlayers() {
@@ -1157,6 +1157,20 @@ async function adminPrizes() {
       const ok = $('#pok'); ok.textContent = 'Saved ✓'; ok.classList.remove('hidden');
     } catch (e) { alert(e.message); }
   };
+}
+
+async function adminStrokes() {
+  const el = $('#admin-body');
+  el.innerHTML = `<div class="card"><h2>Strokes Per Course</h2>
+    <div class="sub">Course handicap for every player on each course — the strokes they get.</div>
+    <div id="strdata" class="mt"><div class="tiny center">Loading…</div></div></div>`;
+  let data;
+  try { data = await api('/api/admin/strokes'); }
+  catch (e) { $('#strdata').innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  const courses = data.courses || [];
+  $('#strdata').innerHTML = `<table class="rows mini"><thead><tr><th>Player</th>${courses.map(c => `<th class="num">${esc(c.name)}</th>`).join('')}</tr></thead><tbody>`
+    + data.players.map(p => `<tr><td><span class="swatch" style="background:${teamHex(p.team_color)}"></span> ${esc(p.name)} <span class="tiny">idx ${p.ghin_index}</span></td>${p.strokes.map(s => `<td class="num">${s == null ? '–' : s}</td>`).join('')}</tr>`).join('')
+    + `</tbody></table>`;
 }
 
 async function adminExport() {

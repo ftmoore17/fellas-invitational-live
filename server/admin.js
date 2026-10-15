@@ -21,6 +21,7 @@ const express = require('express');
 const db = require('./db');
 const auth = require('./auth');
 const LB = require('./leaderboards');
+const S = require('./scoring');
 
 const router = express.Router();
 
@@ -224,6 +225,30 @@ router.get('/players', (req, res) => {
     LEFT JOIN teams tm ON tm.id = p.team_id
     WHERE p.tournament_id = ? ORDER BY tm.sort_order, p.name
   `).all(t.id));
+});
+
+// Strokes per course: every player's course handicap on each course (black tees,
+// same formula scoring uses).
+router.get('/strokes', (req, res) => {
+  const t = currentTournament();
+  const courses = db.prepare(`
+    SELECT id, name, black_slope, black_rating, black_par FROM courses
+    WHERE tournament_id = ? ORDER BY name
+  `).all(t.id);
+  const players = db.prepare(`
+    SELECT p.id, p.name, p.ghin_index, p.tier, tm.color AS team_color FROM players p
+    LEFT JOIN teams tm ON tm.id = p.team_id
+    WHERE p.tournament_id = ? ORDER BY tm.sort_order, p.name
+  `).all(t.id);
+  res.json({
+    courses: courses.map(c => ({ id: c.id, name: c.name })),
+    players: players.map(p => ({
+      id: p.id, name: p.name, team_color: p.team_color, tier: p.tier, ghin_index: p.ghin_index,
+      strokes: courses.map(c => (p.ghin_index != null && c.black_slope && c.black_rating && c.black_par)
+        ? S.courseHandicap(p.ghin_index, c.black_slope, c.black_rating, c.black_par)
+        : null)
+    }))
+  });
 });
 
 router.post('/players', (req, res) => {
