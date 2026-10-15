@@ -1335,10 +1335,10 @@ async function renderCalcutta() {
       html += `
     <div class="card">
       <h2>Place a bet</h2>
-      <div class="sub">Own a piece of a team — your % of the team wins 100% of the pool if they win it all. You'll pay on Venmo right after.</div>
+      <div class="sub">Own a piece of a team — your % of the team wins 100% of the pool if they win it all. ${board.venmo_username ? `You'll pay @${esc(board.venmo_username)} on Venmo right after.` : `You'll pay on Venmo right after.`}</div>
       <div class="cform${isSpectator ? '' : ' crow'}">
         ${isSpectator ? `<label>Your name<input id="cbet-name" type="text" placeholder="e.g. Mike Smith" value="${esc(specName)}" maxlength="40" autocomplete="name"></label>` : ''}
-        <label>Team<select id="cbet-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)} — ${cMoney(t.total_cents)} in</option>`).join('')}</select></label>
+        <label>Team<select id="cbet-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)}</option>`).join('')}</select></label>
         <label>Amount $<input id="cbet-amount" type="number" min="1" step="1" placeholder="100"></label>
       </div>
       <div class="tiny" id="cbet-preview" style="margin:2px 0 6px"></div>
