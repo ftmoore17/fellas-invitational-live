@@ -679,7 +679,7 @@ function getSchedule(tournamentId, playerId = null) {
           const ch = course ? playerCH(r, course) : null;
           return {
             id: r.id, name: r.name, tier: r.tier,
-            strokes: m.format === 'scramble' ? null : (m.segment === 'full' ? ch : ch == null ? null : Math.round(ch / 2)),
+            strokes: m.format === 'scramble' ? null : ch,
             own: playerId != null && r.id === playerId,
           };
         }),

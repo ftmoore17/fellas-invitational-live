@@ -55,7 +55,9 @@ function segmentHoles(segment) {
  */
 function playerSegmentScore(grossByHole, holesMeta, courseHcp18, segment) {
   const holes = segmentHoles(segment);
-  const ch = segment === 'full' ? courseHcp18 : Math.round(courseHcp18 / 2);
+  // Tournament rule: strokes are given for the whole 18 (on the lowest-SI holes),
+  // even when a match covers only 9 holes — never halve the handicap.
+  const ch = courseHcp18;
   const nets = new Map();
   let stableford = 0, grossTotal = 0, netTotal = 0, holesPlayed = 0;
   for (const h of holes) {
