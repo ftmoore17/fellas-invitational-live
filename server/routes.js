@@ -297,9 +297,16 @@ router.get('/pairings/:id', auth.requireAuth, (req, res) => {
       holes = S.segmentHoles(match.segment).map(h => {
         const m = meta[h - 1];
         const hole = { hole: h, par: m.par, si: m.si };
-        // Per-hole yardage rides along when the course data carries it
-        // (a holes_json entry may add `yds`); omitted when not stored.
-        const yds = m.yds ?? m.yards ?? m.yardage;
+        // Per-hole yardage rides along when the course data carries it.
+        // Tees: regular matches play the BLACK tees; the scramble (M3)
+        // plays the WHITE tees. holes_json entries may carry yds_black /
+        // yds_white — pick the one for this pairing's format, and never
+        // substitute the other tee's number when it's missing. A legacy
+        // single `yds` (stored back when only black tees were tracked)
+        // is a fallback for non-scramble pairings only.
+        const yds = match.format === 'scramble'
+          ? m.yds_white
+          : (m.yds_black ?? m.yds ?? m.yards ?? m.yardage);
         if (yds != null) hole.yds = yds;
         return hole;
       });
