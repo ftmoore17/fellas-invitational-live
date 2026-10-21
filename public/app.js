@@ -210,13 +210,20 @@ function showMain() {
   if (me.role === 'admin') label = 'Admin';
   else if (me.role === 'player' && me.player) label = esc(me.player.name);
   else if (me.role === 'spectator') label = 'Spectator';
-  chip.innerHTML = `${label} <button id="logout">Log out</button>`;
+  chip.innerHTML = `<span class="chipname">${label}</span><button id="logout">Log out</button>`;
   $('#logout').onclick = async () => { await api('/api/auth/logout', { method: 'POST' }); location.reload(); };
   switchTab('leaderboard');
 }
 
 function switchTab(tab) {
   state.tab = tab;
+  // Scoring tab is scroll-locked (see body.scoring-lock in styles.css):
+  // the class pins the page to the viewport while Scoring is active and
+  // is removed the moment any other tab is chosen, restoring normal
+  // scrolling. Live re-renders (refreshCurrentTab) don't touch the class,
+  // so websocket updates preserve the lock.
+  document.body.classList.toggle('scoring-lock', tab === 'scoring');
+  if (tab === 'scoring') window.scrollTo(0, 0);
   $$('#tab-bar .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $('#tab-title').textContent = TAB_TITLES[tab];
   refreshCurrentTab();
@@ -878,7 +885,7 @@ async function renderMatchBoard() {
   // ranked within each nine — flagged with an asterisk + footnote (Trice).
   const splitNote = n === 4 || n === 5;
   const prizeKey = data.format === 'scramble' ? 'scrambleLowNet' : data.format === 'singles' ? 'singlesLowNet' : 'matchLowNet';
-  let html = `<div class="card"><div class="boardtitle"><h2>${label}${splitNote ? ' *' : ''}</h2>${prizeBadge(prizeKey)}</div><div class="sub">Live · tap a row for hole-by-hole</div></div>`;
+  let html = `<div class="card"><div class="boardtitle"><h2>${label}${splitNote ? ' *' : ''}</h2></div><div class="boardsubrow"><div class="sub">Live · tap a row for hole-by-hole</div>${prizeBadge(prizeKey)}</div></div>`;
   html += `<div class="boardhead"><span></span><span>${who}</span><span class="num">Thru</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     const name = data.format === 'scramble' ? r.color
@@ -966,7 +973,7 @@ async function renderWeekendBoard() {
   let data;
   try { data = await api(`/api/boards/weekend${tier}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  let html = `<div class="card"><div class="boardtitle"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2>${prizeBadge(state.boards.tier === 'ALL' ? 'weekendLowNet' : 'tierLowNet')}</div><div class="sub">Tap a player for per-course scoring</div></div>`;
+  let html = `<div class="card"><div class="boardtitle"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2></div><div class="boardsubrow"><div class="sub">Tap a player for per-course scoring</div>${prizeBadge(state.boards.tier === 'ALL' ? 'weekendLowNet' : 'tierLowNet')}</div></div>`;
   html += `<div class="boardhead"><span></span><span>Player</span><span class="num">Thru</span><span class="num">Net</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     html += `<details class="boardrow" data-pid="${r.playerId}"${state.boards.weekendPlayer === r.playerId ? ' open' : ''}><summary><span class="rank">${i + 1}</span>`
