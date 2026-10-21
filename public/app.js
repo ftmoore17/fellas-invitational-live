@@ -694,9 +694,8 @@ function renderScorecard() {
           </div>
           <div class="stepper">
             <button data-act="dec">−</button>
-            <div class="val" data-val>${curGross == null ? '–' : curGross}</div>
+            <div class="val" data-val><span class="vtext">${curGross == null ? '–' : curGross}</span>${!isScr && holeStrokes > 0 ? `<span class="stepdots">${'<span class="sdot"></span>'.repeat(holeStrokes)}</span>` : ''}</div>
             <button data-act="inc">+</button>
-            ${!isScr && holeStrokes > 0 ? `<span class="stepdots">${'<span class="sdot"></span>'.repeat(holeStrokes)}</span>` : ''}
           </div>
           ${isScr ? '' : `<div class="netbox"><div class="netlabel">NET</div><div class="netval" style="color:${teamHex(teamColor)}">${net == null ? '' : net}</div></div>`}
         </div>
@@ -729,11 +728,12 @@ function renderScorecard() {
     const pid = Number(card.dataset.pid);
     const hs = Number(card.dataset.hs || 0);
     const valEl = $('.val', card);
+    const vtextEl = $('.vtext', valEl);
     const netValEl = $('.netval', card);
     let v = ((d.scores || {})[pid] || {})[cur.hole];
     if (s.pending[`${pid}:${cur.hole}`] !== undefined) v = s.pending[`${pid}:${cur.hole}`];
     const paint = () => {
-      valEl.textContent = v == null ? '–' : v;
+      vtextEl.textContent = v == null ? '–' : v;
       // Net lives in a fixed slot on the right of the card: update the value
       // in place (empty when no gross) so the card never changes height.
       if (netValEl) netValEl.textContent = v == null ? '' : v - hs;

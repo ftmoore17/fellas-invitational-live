@@ -153,12 +153,13 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .scorer-card .pname .hcpbadge { font-size: 10px; font-weight: 800; color: var(--muted); line-height: 1; margin-top: 1px; flex: none; }
 .stepper { display: flex; align-items: center; gap: 0; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; flex: none; position: relative; }
 .stepper button { width: 46px; height: 46px; border: none; background: #f8fafc; font-size: 22px; cursor: pointer; color: var(--navy-700); }
-.stepper .val { min-width: 52px; text-align: center; font-size: 22px; font-weight: 800; }
+.stepper .val { min-width: 52px; text-align: center; font-size: 22px; font-weight: 800; position: relative; }
 .scorer-card .stepper button { width: 42px; height: 44px; }
 .scorer-card .stepper .val { min-width: 42px; }
-/* Strokes on this hole: small black dots in the stepper's top-right corner,
-   one per stroke. Subtle, and they never change the box's size. */
-.stepdots { position: absolute; top: 4px; right: 5px; display: flex; gap: 2px; pointer-events: none; }
+/* Strokes on this hole: small black dots in the top-right corner of the
+   stepper's center value cell (the white box the number sits in), one per
+   stroke. Subtle, and they never change the box's size. */
+.stepdots { position: absolute; top: 3px; right: 3px; display: flex; gap: 2px; pointer-events: none; }
 .stepdots .sdot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink); display: block; }
 /* Net lives in a fixed-width slot on the right of the card, always rendered
    (value blank until a gross exists) so the card height never changes. */
