@@ -472,24 +472,25 @@ function pairVsCard(ev, m) {
     else if (h.winner === 'H') { bg = '#cbd5e1'; color = '#475569'; }
     return `<div class="holepip" style="background:${bg};color:${color}">${h.hole}</div>`;
   }).join('');
-  // Player names on top, team label underneath. The middle is a grid whose
-  // first row holds ONLY the two name blocks and the VS badge, so the badge
-  // centers vertically on the names — the labels in the second row never
-  // pull it off-center.
+  // Team identity is the color pill alone — no team-name text on the card.
+  // Each side is a flex row: the pill sits on the OUTSIDE of the names
+  // (left of side A, right of side B), vertically centered on the name
+  // stack. The VS badge shares the single grid row and centers on the
+  // names the same way.
   const namesHtml = (s) => (s.players || []).map(p => `<div class="pname"><span class="namewrap"><span class="nametext">${esc(p.name)}</span><span class="hcpbadge">${p.strokes}</span></span></div>`).join('');
-  const labelHtml = (color, align) => align === 'right'
-    ? `<div class="tlabel right">${esc(color)}<span class="swatch" style="background:${teamHex(color)};margin-left:8px"></span></div>`
-    : `<div class="tlabel"><span class="swatch" style="background:${teamHex(color)};margin-right:8px"></span>${esc(color)}</div>`;
+  const sideHtml = (s, color, align) => {
+    const names = `<div class="namesblock">${namesHtml(s)}</div>`;
+    const pill = `<span class="swatch" style="background:${teamHex(color)}"></span>`;
+    return align === 'right' ? names + pill : pill + names;
+  };
   return `
     <div class="paircard">
       <div class="phead"><span>${esc(ev.teeTime || '')}</span><span>${esc(ev.courseLabel || '')}</span></div>
       ${statusHtml}
       <div class="vs pairvs">
-        <div class="vsnames a">${namesHtml(ev.sideA)}</div>
+        <div class="vsnames a">${sideHtml(ev.sideA, ev.colorA, '')}</div>
         <div class="vsbadge">VS</div>
-        <div class="vsnames b">${namesHtml(ev.sideB)}</div>
-        <div class="vslabel a">${labelHtml(ev.colorA, '')}</div>
-        <div class="vslabel b">${labelHtml(ev.colorB, 'right')}</div>
+        <div class="vsnames b">${sideHtml(ev.sideB, ev.colorB, 'right')}</div>
       </div>
       ${strip ? `<div class="holestrip">${strip}</div>` : ''}
     </div>`;
