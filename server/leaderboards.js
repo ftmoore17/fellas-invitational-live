@@ -309,6 +309,7 @@ function computeMatchBoard(tournamentId, matchNo) {
     for (const p of pairings) {
       const course = getCourse(p.course_id);
       const ev = evaluateScramblePairing(p, course);
+      const meta = holesMeta(course);
       rows.push({
         teamId: ev.teamId, color: teams.get(ev.teamId),
         course: ev.courseName, teeTime: ev.teeTime,
@@ -316,6 +317,8 @@ function computeMatchBoard(tournamentId, matchNo) {
         thru: ev.thru, complete: ev.complete,
         // 18-hole gross array (null = unplayed) — powers the expandable scorecard
         holes: ev.holes,
+        // Per-hole pars for the scorecard chips (null when no hole data).
+        pars: meta ? meta.map(h => h.par) : null,
       });
     }
     // Rank by score relative to par (live to-par); ties broken by USGA
@@ -351,6 +354,7 @@ function computeMatchBoard(tournamentId, matchNo) {
           const gmap = gross.get(pl.id) || new Map();
           const detail = holes.map(h => ({
             hole: h,
+            par: meta ? meta[h - 1].par : null,
             gross: gmap.get(h) ?? null,
             net: pl.nets.get(h) ?? null,
           }));
@@ -395,6 +399,7 @@ function computeMatchBoard(tournamentId, matchNo) {
           name: pl.name, strokes: pl.strokes,
           holes: holes.map(h => ({
             hole: h,
+            par: meta ? meta[h - 1].par : null,
             gross: gmap.get(h) ?? null,
             net: pl.nets.get(h) ?? null,
           })),
@@ -603,8 +608,9 @@ function computeNineLowNet(tournamentId, nine) {
 /**
  * Per-course aggregates for one player across non-scramble matches —
  * powers the Weekend Low Net expandable "what they shot on each course"
- * breakdown. Returns [{ course, gross, net, toPar, thru, sf }], only
- * courses where the player has scores.
+ * breakdown. Returns [{ course, gross, net, toPar, thru, sf, holes }]
+ * (holes = full 18-hole scorecard detail), only courses where the
+ * player has scores.
  */
 function playerCourseAggregates(playerId) {
   const player = db.prepare(`SELECT * FROM players WHERE id = ?`).get(playerId);
@@ -633,14 +639,38 @@ function playerCourseAggregates(playerId) {
         if (n != null) toPar += n - meta[h - 1].par;
       }
       if (!byCourse.has(course.name)) {
-        byCourse.set(course.name, { course: course.name, gross: 0, net: 0, toPar: 0, thru: 0, sf: 0 });
+        byCourse.set(course.name, {
+          course: course.name, gross: 0, net: 0, toPar: 0, thru: 0, sf: 0,
+          pars: meta.map(h => h.par), holeMap: new Map(),
+        });
       }
       const a = byCourse.get(course.name);
       a.gross += seg.grossTotal; a.net += seg.netTotal; a.toPar += toPar;
       a.thru += seg.holesPlayed; a.sf += seg.stableford;
+      // Per-hole scorecard detail, accumulated over the same pairings and
+      // segment scores as the totals above, so the holes always reconcile
+      // with this row's gross / net / to-par. (Scramble is excluded here
+      // exactly as it is from the totals — Weekend Low Net counts only the
+      // player's own scores from the non-scramble matches.)
+      for (const h of S.segmentHoles(m.segment)) {
+        const g = grossMap.get(h);
+        if (g == null) continue;
+        const cell = a.holeMap.get(h) || { hole: h, par: meta[h - 1].par, gross: 0, net: 0 };
+        cell.gross += g;
+        cell.net += seg.nets.get(h) ?? 0;
+        a.holeMap.set(h, cell);
+      }
     }
   }
-  return [...byCourse.values()];
+  return [...byCourse.values()].map(a => {
+    // Full 18-hole scorecard: played holes from the map, the rest blank.
+    const holes = Array.from({ length: 18 }, (_, i) => {
+      const h = i + 1;
+      return a.holeMap.get(h) || { hole: h, par: a.pars[i], gross: null, net: null };
+    });
+    const { pars, holeMap, ...rest } = a;
+    return { ...rest, holes };
+  });
 }
 
 /**

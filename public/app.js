@@ -54,7 +54,7 @@ const state = {
   tournament: null,
   tab: 'leaderboard',
   scoring: { matchNo: null, pairingId: null, detail: null, holeIdx: 0, groups: null },
-  boards: { view: 'match', matchNo: 1, tier: 'ALL' },
+  boards: { view: 'match', matchNo: 1, tier: 'ALL', weekendPlayer: null, weekendCourse: null },
   admin: { section: 'players' },
   ws: null, wsTimer: null,
 };
@@ -893,13 +893,14 @@ function holeChips(holes, showNet, taken) {
     const g = h.gross == null ? '–' : h.gross;
     const isTaken = taken && taken[i];
     const n = showNet ? `<span class="${isTaken ? 'taken' : ''}">${h.net == null ? '–' : h.net}</span>` : '';
-    return `<div class="dchip"><em>${h.hole}</em><b>${g}</b>${n}</div>`;
+    const par = h.par != null ? `<i>Par ${h.par}</i>` : '';
+    return `<div class="dchip"><em>${h.hole}</em>${par}<b>${g}</b>${n}</div>`;
   }).join('')}</div>`;
 }
 
 function matchDetailHtml(format, r) {
   if (format === 'scramble') {
-    const holes = (r.holes || []).map((g, i) => ({ hole: i + 1, gross: g }));
+    const holes = (r.holes || []).map((g, i) => ({ hole: i + 1, gross: g, par: r.pars ? r.pars[i] : null }));
     return `<div class="dsub">${esc(r.course || '')}${r.teeTime ? ' · ' + esc(r.teeTime) : ''}</div>`
       + holeChips(holes, false)
       + `<div class="dtotal">Total ${r.total == null ? '–' : r.total} · ${fmtToPar(r.toPar)} · thru ${r.thru || 0}</div>`;
@@ -932,7 +933,7 @@ function matchDetailHtml(format, r) {
       + holeChips(pl.holes || [], true, flags)
       + `<div class="dtotal">Total ${g} gross · ${nt} net</div>`;
   }).join('');
-  bout += `<div class="dsub">Highlighted nets are the ones counted — they add up to the pair's net score.</div>`;
+  bout += `<div class="dsub">Highlighted nets are the ones counted.</div>`;
   return bout;
 }
 
@@ -942,10 +943,10 @@ async function renderWeekendBoard() {
   let data;
   try { data = await api(`/api/boards/weekend${tier}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  let html = `<div class="card"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2><div class="sub">Thru is holes completed of 54 · tap a player for per-course scoring</div></div>`;
+  let html = `<div class="card"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2><div class="sub">Tap a player for per-course scoring</div></div>`;
   html += `<div class="boardhead"><span></span><span>Player</span><span class="num">Thru</span><span class="num">Net</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
-    html += `<details class="boardrow"><summary><span class="rank">${i + 1}</span>`
+    html += `<details class="boardrow" data-pid="${r.playerId}"${state.boards.weekendPlayer === r.playerId ? ' open' : ''}><summary><span class="rank">${i + 1}</span>`
       + `<span class="bname"><span class="swatch" style="background:${teamHex(r.color)}"></span><span class="t">${esc(r.name)} <span class="pill">${esc(r.tier || '')}</span></span></span>`
       + `<span class="num">${r.thru || '–'}</span>`
       + `<span class="num">${r.netTotal == null ? '–' : r.netTotal}</span>`
@@ -953,14 +954,52 @@ async function renderWeekendBoard() {
       + `<div class="body">${weekendDetailHtml(r)}</div></details>`;
   });
   el.innerHTML = html;
+  // Accordion state survives live re-renders (same pattern as the
+  // Leaderboard standings): remember which player row is open, and make
+  // the per-course scorecards within one player's expansion exclusive.
+  $$('#board-body details.boardrow').forEach(d => {
+    d.addEventListener('toggle', () => {
+      const pid = Number(d.dataset.pid);
+      if (d.open) state.boards.weekendPlayer = pid;
+      else if (state.boards.weekendPlayer === pid) state.boards.weekendPlayer = null;
+    });
+  });
+  $$('#board-body details.wcrow').forEach(d => {
+    d.addEventListener('toggle', () => {
+      if (d.open) {
+        state.boards.weekendCourse = d.dataset.key;
+        const scope = d.closest('details.boardrow') || d.parentElement;
+        scope.querySelectorAll('details.wcrow').forEach(o => { if (o !== d && o.open) o.open = false; });
+      } else if (state.boards.weekendCourse === d.dataset.key) {
+        state.boards.weekendCourse = null;
+      }
+    });
+  });
 }
 
 function weekendDetailHtml(r) {
   const courses = r.courses || [];
   if (!courses.length) return `<div class="dsub">No scores yet</div>`;
-  return `<table class="rows mini"><thead><tr><th>Course</th><th class="num">Gross</th><th class="num">Net</th><th class="num">To Par</th></tr></thead><tbody>`
-    + courses.map(c => `<tr><td>${esc(c.course)}</td><td class="num">${c.gross}</td><td class="num">${c.net}</td><td class="num ${toParClass(c.toPar)}">${fmtToPar(c.toPar)}</td></tr>`).join('')
-    + `</tbody></table>`;
+  // Each course row expands inline (no popup) into that player's full
+  // 18-hole scorecard on the course — two blocks of 9 in the same hole-cell
+  // style as the match boards, with an Out / In totals line per nine.
+  const nineLine = (arr, label) => {
+    const played = arr.filter(h => h.gross != null);
+    if (!played.length) return '';
+    const g = played.reduce((s, h) => s + h.gross, 0);
+    const n = played.reduce((s, h) => s + (h.net || 0), 0);
+    return `<div class="dtotal">${label} · Gross ${g} · Net ${n}</div>`;
+  };
+  let out = `<div class="wchead"><span>Course</span><span class="num">Gross</span><span class="num">Net</span><span class="num">To Par</span></div>`;
+  out += courses.map(c => {
+    const key = `${r.playerId}|${c.course}`;
+    const holes = c.holes || [];
+    const front = holes.slice(0, 9), back = holes.slice(9, 18);
+    return `<details class="wcrow" data-key="${esc(key)}"${state.boards.weekendCourse === key ? ' open' : ''}>`
+      + `<summary><span class="wcname">${esc(c.course)}</span><span class="num">${c.gross}</span><span class="num">${c.net}</span><span class="num ${toParClass(c.toPar)}">${fmtToPar(c.toPar)}</span></summary>`
+      + `<div class="wcbody">${holeChips(front, true)}${nineLine(front, 'Out')}${holeChips(back, true)}${nineLine(back, 'In')}</div></details>`;
+  }).join('');
+  return out;
 }
 
 async function renderNineBoard(nine) {

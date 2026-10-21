@@ -311,8 +311,19 @@ details.boardrow .body { padding: 2px 14px 14px; }
 .dchips { display: flex; flex-wrap: nowrap; gap: 4px; margin: 6px 0; overflow-x: auto; }
 .dchip { flex: 1 0 0; min-width: 30px; text-align: center; background: #f1f5f9; border-radius: 8px; padding: 4px 2px 5px; }
 .dchip em { display: block; font-style: normal; font-size: 9px; color: var(--muted); font-weight: 700; }
+.dchip i { display: block; font-style: normal; font-size: 8.5px; line-height: 1.2; color: var(--muted); opacity: .75; }
 .dchip b { display: block; font-size: 14px; line-height: 1.25; }
 .dchip span { display: block; font-size: 10px; color: var(--muted); }
+
+/* ---------- weekend board: per-course scorecard rows ---------- */
+.wchead { display: grid; grid-template-columns: 1fr 52px 52px 62px; gap: 6px; padding: 6px 2px 2px; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.wchead .num { text-align: right; }
+details.wcrow { border-top: 1px solid #eef2f7; }
+details.wcrow summary { display: grid; grid-template-columns: 1fr 52px 52px 62px; gap: 6px; align-items: center; padding: 9px 2px; font-size: 12.5px; cursor: pointer; list-style: none; }
+details.wcrow summary::-webkit-details-marker { display: none; }
+details.wcrow summary .num { text-align: right; }
+.wcname { font-weight: 600; }
+.wcbody { padding: 2px 0 6px; }
 .dtotal { font-size: 12px; color: var(--muted); margin: 2px 0 8px; }
 table.rows.mini { font-size: 12.5px; margin-top: 6px; }
 table.rows.mini td { padding: 8px 10px; }
