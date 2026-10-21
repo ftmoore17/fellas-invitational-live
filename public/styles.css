@@ -142,12 +142,17 @@ table.rows td.num, table.rows th.num { text-align: right; }
 }
 .navbtn:disabled { opacity: .3; }
 .scorer-card { background: #fff; border-radius: var(--radius); padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(10,25,50,.08); }
-/* Row layout: name block at its natural width on the left, NET slot fixed
-   on the right, and the stepper centered in the free space BETWEEN them
-   (auto margins split what's left after the name and NET are placed) —
-   not at the card's geometric center. */
+/* Row layout: the name block is a FIXED-width column (identical in every
+   row, wide enough for typical names + the superscript strokes badge;
+   extreme names ellipsis inside it), the NET slot is fixed on the right,
+   and the stepper is centered in the middle region between them. Because
+   the name column no longer sizes to each row's name, the middle region
+   is the same width on every row, so all steppers form ONE aligned column
+   instead of zigzagging per name length. The column lands right of the
+   card's geometric center — toward the NET — because the fixed name
+   column (124px) is wider than the NET slot (40px). */
 .scorer-card .phead { display: flex; align-items: center; gap: 8px; }
-.scorer-card .pinfo { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 1 auto; max-width: 48%; }
+.scorer-card .pinfo { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 0 124px; width: 124px; }
 .scorer-card .stepper { margin-inline: auto; }
 .scorer-card .ptext { min-width: 0; }
 .scorer-card .pname { font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; white-space: nowrap; }

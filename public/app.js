@@ -697,7 +697,7 @@ function renderScorecard() {
             <div class="val" data-val><span class="vtext">${curGross == null ? '–' : curGross}</span>${!isScr && holeStrokes > 0 ? `<span class="stepdots">${'<span class="sdot"></span>'.repeat(holeStrokes)}</span>` : ''}</div>
             <button data-act="inc">+</button>
           </div>
-          ${isScr ? '' : `<div class="netbox"><div class="netlabel">NET</div><div class="netval" style="color:${teamHex(teamColor)}">${net == null ? '' : net}</div></div>`}
+          ${isScr ? `<div class="netbox" aria-hidden="true"></div>` : `<div class="netbox"><div class="netlabel">NET</div><div class="netval" style="color:${teamHex(teamColor)}">${net == null ? '' : net}</div></div>`}
         </div>
       </div>`;
   }).join('');

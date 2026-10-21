@@ -20,6 +20,15 @@ const S = require('./scoring');
 
 // ---------------------------------------------------------------- helpers
 
+// Display-only course name: stored pairing labels carry the segment suffix
+// ("Love Front", "Dye Back") because the segment decides which nine is
+// played, but users just see the course ("Love", "Dye"). Storage, keys, and
+// segment/matching logic are untouched — this only trims emitted labels.
+function displayCourseName(label) {
+  if (label == null) return label;
+  return String(label).replace(/\s+(Front|Back)\s*$/, '');
+}
+
 function getTournament(id) {
   return db.prepare(`SELECT * FROM tournaments WHERE id = ?`).get(id);
 }
@@ -133,7 +142,7 @@ function evaluatePairing(pairing, match, course) {
   return {
     pairingId: pairing.id,
     teeTime: pairing.tee_time,
-    courseLabel: pairing.course_label,
+    courseLabel: displayCourseName(pairing.course_label),
     unitType: pairing.unit_type,
     status: mp.status, through: mp.through, final: mp.final,
     winner: mp.winner, leader: mp.leader, closedOut: mp.closedOut,
@@ -174,7 +183,7 @@ function evaluateScramblePairing(pairing, course) {
     pairingId: pairing.id,
     teamId: pairing.side_a_team_id,
     courseId: pairing.course_id,
-    courseName: course ? course.name : pairing.course_label,
+    courseName: course ? course.name : displayCourseName(pairing.course_label),
     teeTime: pairing.tee_time,
     holes,
     total,
@@ -687,7 +696,7 @@ function getSchedule(tournamentId, playerId = null) {
       const own = playerId != null && pps.some(r => r.id === playerId);
       if (m.format === 'scramble') {
         return {
-          id: p.id, teeTime: p.tee_time, courseLabel: course ? course.name : p.course_label,
+          id: p.id, teeTime: p.tee_time, courseLabel: course ? course.name : displayCourseName(p.course_label),
           unitType: 'team',
           team: { teamId: p.side_a_team_id, color: teams.get(p.side_a_team_id) },
           players: pps.map(r => ({ id: r.id, name: r.name, own: playerId != null && r.id === playerId })),
@@ -696,7 +705,7 @@ function getSchedule(tournamentId, playerId = null) {
       }
       return {
         id: p.id, teeTime: p.tee_time,
-        courseLabel: p.course_label || (course ? course.name : null),
+        courseLabel: displayCourseName(p.course_label) || (course ? course.name : null),
         unitType: p.unit_type,
         sideA: mkSide('A'), sideB: mkSide('B'),
         own,
@@ -785,7 +794,7 @@ function getPlayerGroups(tournamentId, playerId) {
       groups.push({
         matchNo: m.match_no, matchLabel: m.label, day: m.day,
         pairingId: pairing_id, teeTime: pairing.tee_time,
-        courseLabel: pairing.course_label || (course ? course.name : null),
+        courseLabel: displayCourseName(pairing.course_label) || (course ? course.name : null),
         format: m.format, mySide: side,
         partners, opponents,
         thru, final, status,
