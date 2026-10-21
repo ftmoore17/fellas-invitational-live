@@ -205,9 +205,22 @@ function computeMasterLeaderboard(tournamentId) {
   const matches = getMatches(tournamentId);
   const teamById = new Map(teams.map(t => [t.id, t]));
 
+  // Team rosters for the expandable standings rows: each team's members
+  // with their designated tier, in tier order (A, B, C, D).
+  const tierRank = { A: 0, B: 1, C: 2, D: 3 };
+  const membersByTeam = new Map();
+  for (const p of getPlayers(tournamentId)) {
+    if (!membersByTeam.has(p.team_id)) membersByTeam.set(p.team_id, []);
+    membersByTeam.get(p.team_id).push({ name: p.name, tier: p.tier || null });
+  }
+  for (const list of membersByTeam.values()) {
+    list.sort((a, b) => (tierRank[a.tier] ?? 9) - (tierRank[b.tier] ?? 9)
+      || String(a.name).localeCompare(String(b.name)));
+  }
+
   const rows = teams.map(t => ({
     teamId: t.id, color: t.color, total: 0, sfTotal: 0,
-    matches: {},
+    matches: {}, members: membersByTeam.get(t.id) || [],
   }));
   const rowByTeam = new Map(rows.map(r => [r.teamId, r]));
 

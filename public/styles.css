@@ -70,6 +70,18 @@ table.board th, table.board td { padding: 7px 8px; text-align: center; white-spa
 table.board thead th { color: #9fb2d4; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; }
 table.board tbody td { border-top: 1px solid rgba(255,255,255,.08); }
 table.board td.teamcell { text-align: left; }
+table.board td.teamtoggle { cursor: pointer; }
+/* Expanded roster under a standings row: the team's four members with
+   tiers, in the standings' dark style. Members wrap within the row, so
+   the expansion never widens the table. */
+table.board tr.teamdetail[hidden] { display: none; }
+table.board tr.teamdetail td {
+  text-align: left; white-space: normal; background: rgba(255,255,255,.05);
+  padding: 8px 10px 11px 49px;
+}
+.teammembers { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.tmember { font-size: 12px; color: #c9d6ee; }
+.tmember b { color: var(--gold); font-weight: 800; }
 .teamcell .tname { font-weight: 700; display: flex; align-items: center; gap: 7px; }
 .teamcell .back { font-size: 11px; color: #9fb2d4; margin-left: 26px; }
 .swatch { width: 10px; height: 22px; border-radius: 5px; display: inline-block; flex: none; vertical-align: middle; }
@@ -88,7 +100,10 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .pill { display: inline-block; background: #eef2f7; border-radius: 999px; padding: 2px 8px; font-size: 11.5px; font-weight: 700; color: var(--navy-700); }
 
 /* ---------- match pills / selectors ---------- */
-.pillrow { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 8px; -webkit-overflow-scrolling: touch; }
+.pillrow { display: flex; gap: 8px; padding: 2px 2px 8px; }
+/* Pills inside a .pillrow share the row width equally, so all 7 match
+   pills (M1–M7) fit on a phone screen with no sideways scrolling. */
+.pillrow .mpill { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; }
 .mpill {
   flex: none; border: 1.5px solid var(--line); background: #fff; border-radius: 999px;
   padding: 8px 16px; font-weight: 700; font-size: 13px; color: var(--navy-700); cursor: pointer;
@@ -124,9 +139,12 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .score-status .status-team { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .score-status .status-margin { font-size: 26px; font-weight: 800; margin-top: 2px; }
 .score-status .status-through { font-size: 13px; margin-top: 2px; opacity: .85; }
-.holeselector { display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; }
+/* Hole buttons size to the container: 9 across on one row for 9-hole
+   matches; the 18-hole scramble wraps into two rows of 9 at the same
+   size (basis = one ninth of the row after the 8 gaps). No scrolling. */
+.holeselector { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 2px 10px; }
 .hbtn {
-  flex: none; width: 40px; height: 40px; border-radius: 10px; border: 1.5px solid var(--line);
+  flex: 1 1 calc((100% - 48px) / 9); min-width: 0; height: 40px; border-radius: 10px; border: 1.5px solid var(--line);
   background: #fff; font-weight: 700; cursor: pointer; color: var(--navy-700);
 }
 .hbtn.active { background: var(--navy-800); color: #fff; border-color: var(--navy-800); }
@@ -158,9 +176,12 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .scorer-card .pname { font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .scorer-card .pname .nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .scorer-card .pname .strokes { flex: none; margin-left: 0; }
-/* Course strokes as a small quiet superscript at the top-right of the name. */
-.scorer-card .pname .namewrap { display: inline-flex; align-items: flex-start; gap: 2px; min-width: 0; }
-.scorer-card .pname .hcpbadge { font-size: 10px; font-weight: 800; color: var(--muted); line-height: 1; margin-top: 1px; flex: none; }
+/* Course strokes as a small quiet superscript at the top-right of the
+   name — one shared treatment: Scoring rows, Leaderboard pairing cards,
+   and board detail player lines all use namewrap + hcpbadge so the
+   strokes number looks identical everywhere (no pill, no "STR" text). */
+.pname .namewrap, .dplayer .namewrap { display: inline-flex; align-items: flex-start; gap: 2px; min-width: 0; }
+.pname .hcpbadge, .dplayer .hcpbadge { font-size: 10px; font-weight: 800; color: var(--muted); line-height: 1; margin-top: 1px; flex: none; }
 .stepper { display: flex; align-items: center; gap: 0; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; flex: none; position: relative; }
 .stepper button { width: 46px; height: 46px; border: none; background: #f8fafc; font-size: 22px; cursor: pointer; color: var(--navy-700); }
 .stepper .val { min-width: 52px; text-align: center; font-size: 22px; font-weight: 800; position: relative; }
@@ -176,9 +197,9 @@ table.rows td.num, table.rows th.num { text-align: right; }
    The slot stretches to the row height (= the stepper's height); the NET
    number is the same size as the gross value and centered on the same
    height as it, with the little label floated above so it can't push the
-   number down. */
+   number down (label nudged up 4px so it clears the top of the number). */
 .netbox { flex: none; width: 40px; text-align: center; position: relative; align-self: stretch; }
-.netbox .netlabel { position: absolute; top: 0; left: 0; right: 0; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--muted); line-height: 1.2; }
+.netbox .netlabel { position: absolute; top: -4px; left: 0; right: 0; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--muted); line-height: 1.2; }
 .netbox .netval { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); font-size: 22px; font-weight: 800; line-height: 1; }
 .sflabel { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #eef2f7; color: var(--muted); }
 .sflabel.birdie { background: var(--gold); color: var(--navy-900); }

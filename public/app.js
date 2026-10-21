@@ -248,7 +248,7 @@ async function renderLeaderboard() {
       <tbody>
       ${data.teams.map(t => `
         <tr>
-          <td class="teamcell">
+          <td class="teamcell teamtoggle" data-team="${t.teamId}">
             <span class="tname"><span class="place">${ordinal(t.place)}</span><span style="display:flex;flex-direction:column;line-height:1.25"><span style="color:${teamHex(t.color)};font-weight:700">${esc(t.color)}</span><span class="back" style="margin-left:0">${t.back === 0 ? 'Leader' : t.back + ' back'}</span></span></span>
           </td>
           ${matchNos.map(n => {
@@ -258,6 +258,9 @@ async function renderLeaderboard() {
             return `<td>${c.mp == null ? '–' : c.mp}&nbsp;&nbsp;${c.sf || 0}</td>`;
           }).join('')}
           <td class="total">${t.total}</td>
+        </tr>
+        <tr class="teamdetail" data-team="${t.teamId}"${state.lbTeam === t.teamId ? '' : ' hidden'}>
+          <td colspan="9"><div class="teammembers">${(t.members || []).map(m => `<span class="tmember"><b>${esc(m.tier || '–')}</b> · ${esc(m.name)}</span>`).join('')}</div></td>
         </tr>`).join('')}
       </tbody>
     </table></div>
@@ -269,6 +272,15 @@ async function renderLeaderboard() {
     <div id="lb-pairs"><div class="card center tiny">Loading pairings…</div></div>`;
 
   el.innerHTML = html;
+  // Standings accordion: tap a team name to expand its roster (tier +
+  // member) inline below its row. One team open at a time; tapping the
+  // open team closes it. The open team is kept in state.lbTeam so live
+  // re-renders keep it open.
+  $$('#tab-content .teamtoggle').forEach(td => td.onclick = () => {
+    const id = Number(td.dataset.team);
+    state.lbTeam = state.lbTeam === id ? null : id;
+    $$('#tab-content tr.teamdetail').forEach(r => { r.hidden = Number(r.dataset.team) !== state.lbTeam; });
+  });
   $$('#lb-matchpills .mpill').forEach(b => b.onclick = () => {
     state.lbMatch = Number(b.dataset.n);
     $$('#lb-matchpills .mpill').forEach(x => x.classList.toggle('active', Number(x.dataset.n) === state.lbMatch));
@@ -468,7 +480,7 @@ function pairVsCard(ev, m) {
     return `
     <div class="side ${align}">
       ${labelHtml}
-      ${(s.players || []).map(p => `<div class="pname">${esc(p.name)}<span class="strokes">${p.strokes} STR</span></div>`).join('')}
+      ${(s.players || []).map(p => `<div class="pname"><span class="namewrap"><span class="nametext">${esc(p.name)}</span><span class="hcpbadge">${p.strokes}</span></span></div>`).join('')}
     </div>`;
   };
   return `
@@ -702,10 +714,11 @@ function renderScorecard() {
       </div>`;
   }).join('');
 
-  // Hole info line under the big hole number: "Norman · Par 4 · SI 7 · 385 yds"
+  // Hole info line under the big hole number: "Norman · Par 4 · 385 yds · SI 7"
   // (yardage segment only when the course data stores a per-hole yardage).
-  const metaBits = [ev.courseName || ev.courseLabel || '', `Par ${cur.par}`, `SI ${cur.si}`];
+  const metaBits = [ev.courseName || ev.courseLabel || '', `Par ${cur.par}`];
   if (cur.yds != null) metaBits.push(`${cur.yds} yds`);
+  metaBits.push(`SI ${cur.si}`);
   const holeMeta = metaBits.filter(Boolean).join(' · ');
 
   body.innerHTML = `
@@ -915,7 +928,7 @@ function matchDetailHtml(format, r) {
     let g = 0, nt = 0;
     (pl.holes || []).forEach(h => { if (h.gross != null) g += h.gross; if (h.net != null) nt += h.net; });
     const flags = (pl.holes || []).map((_, i) => takenBy[i] === pi);
-    return `<div class="dplayer">${esc(pl.name)}${pl.strokes != null ? ` <span class="tiny">· ${pl.strokes} STR</span>` : ''}</div>`
+    return `<div class="dplayer"><span class="namewrap"><span class="nametext">${esc(pl.name)}</span>${pl.strokes != null ? `<span class="hcpbadge">${pl.strokes}</span>` : ''}</span></div>`
       + holeChips(pl.holes || [], true, flags)
       + `<div class="dtotal">Total ${g} gross · ${nt} net</div>`;
   }).join('');
