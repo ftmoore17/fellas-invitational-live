@@ -679,25 +679,26 @@ function renderScorecard() {
     const hcp = pl ? (pl.strokes || 0) : 0;
     const holeStrokes = strokesOnHole(hcp, cur.si);
     const net = curGross != null ? curGross - holeStrokes : null;
-    const strokesNote = `${holeStrokes} on this hole`;
     // Team color: prefer player's own team, fall back to side A/B
     const teamColor = p.team || (sideAIds.has(p.id) ? ev.colorA : ev.colorB);
     return `
       <div class="scorer-card" data-pid="${p.id}" data-hs="${holeStrokes}">
         <div class="phead">
-          <div style="display:flex;align-items:center;gap:8px">
+          <div class="pinfo">
             <span class="swatch" style="background:${teamHex(teamColor)}"></span>
-            <div>
-              <div class="pname">${esc(p.name)}<span class="strokes">${hcp} STR</span></div>
-              ${isScr ? '' : `<div class="strokes-note">${esc(strokesNote)}</div>`}
-              ${!isScr ? `<div class="netline" style="font-weight:800;font-size:1.1em;margin-top:2px;${net == null ? 'display:none' : ''}">NET <span class="netval" style="color:${teamHex(teamColor)}">${net == null ? '' : net}</span></div>` : ''}
+            <div class="ptext">
+              ${isScr
+                ? `<div class="pname"><span class="nametext">${esc(p.name)}</span><span class="strokes">${hcp} STR</span></div>`
+                : `<div class="pname"><span class="namewrap"><span class="nametext">${esc(p.name)}</span><span class="hcpbadge">${hcp}</span></span></div>`}
             </div>
           </div>
           <div class="stepper">
             <button data-act="dec">−</button>
             <div class="val" data-val>${curGross == null ? '–' : curGross}</div>
             <button data-act="inc">+</button>
+            ${!isScr && holeStrokes > 0 ? `<span class="stepdots">${'<span class="sdot"></span>'.repeat(holeStrokes)}</span>` : ''}
           </div>
+          ${isScr ? '' : `<div class="netbox"><div class="netlabel">NET</div><div class="netval" style="color:${teamHex(teamColor)}">${net == null ? '' : net}</div></div>`}
         </div>
       </div>`;
   }).join('');
@@ -728,17 +729,14 @@ function renderScorecard() {
     const pid = Number(card.dataset.pid);
     const hs = Number(card.dataset.hs || 0);
     const valEl = $('.val', card);
-    const netEl = $('.netline', card);
     const netValEl = $('.netval', card);
     let v = ((d.scores || {})[pid] || {})[cur.hole];
     if (s.pending[`${pid}:${cur.hole}`] !== undefined) v = s.pending[`${pid}:${cur.hole}`];
     const paint = () => {
       valEl.textContent = v == null ? '–' : v;
-      if (netEl && netValEl) {
-        const n = v == null ? null : v - hs;
-        if (n == null) { netEl.style.display = 'none'; }
-        else { netEl.style.display = ''; netValEl.textContent = n; }
-      }
+      // Net lives in a fixed slot on the right of the card: update the value
+      // in place (empty when no gross) so the card never changes height.
+      if (netValEl) netValEl.textContent = v == null ? '' : v - hs;
     };
     paint();
     // "−" steps down; stepping down from 1 clears back to "no score" (–).

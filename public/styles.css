@@ -142,14 +142,29 @@ table.rows td.num, table.rows th.num { text-align: right; }
 }
 .navbtn:disabled { opacity: .3; }
 .scorer-card { background: #fff; border-radius: var(--radius); padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(10,25,50,.08); }
-.scorer-card .phead { display: flex; align-items: center; justify-content: space-between; }
-.scorer-card .pname { font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
-.strokes-note { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.stepper { display: flex; align-items: center; gap: 0; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; }
+.scorer-card .phead { display: flex; align-items: center; gap: 8px; }
+.scorer-card .pinfo { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.scorer-card .ptext { min-width: 0; }
+.scorer-card .pname { font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.scorer-card .pname .nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.scorer-card .pname .strokes { flex: none; margin-left: 0; }
+/* Course strokes as a small quiet superscript at the top-right of the name. */
+.scorer-card .pname .namewrap { display: inline-flex; align-items: flex-start; gap: 2px; min-width: 0; }
+.scorer-card .pname .hcpbadge { font-size: 10px; font-weight: 800; color: var(--muted); line-height: 1; margin-top: 1px; flex: none; }
+.stepper { display: flex; align-items: center; gap: 0; border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; flex: none; position: relative; }
 .stepper button { width: 46px; height: 46px; border: none; background: #f8fafc; font-size: 22px; cursor: pointer; color: var(--navy-700); }
 .stepper .val { min-width: 52px; text-align: center; font-size: 22px; font-weight: 800; }
-.netline { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 8px; }
-.netline .net { font-size: 19px; font-weight: 800; }
+.scorer-card .stepper button { width: 42px; height: 44px; }
+.scorer-card .stepper .val { min-width: 42px; }
+/* Strokes on this hole: small black dots in the stepper's top-right corner,
+   one per stroke. Subtle, and they never change the box's size. */
+.stepdots { position: absolute; top: 4px; right: 5px; display: flex; gap: 2px; pointer-events: none; }
+.stepdots .sdot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink); display: block; }
+/* Net lives in a fixed-width slot on the right of the card, always rendered
+   (value blank until a gross exists) so the card height never changes. */
+.netbox { flex: none; width: 40px; text-align: center; }
+.netbox .netlabel { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--muted); line-height: 1.2; }
+.netbox .netval { font-size: 20px; font-weight: 800; line-height: 24px; height: 24px; }
 .sflabel { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #eef2f7; color: var(--muted); }
 .sflabel.birdie { background: var(--gold); color: var(--navy-900); }
 .sflabel.eagle { background: var(--navy-800); color: #fff; }
