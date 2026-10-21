@@ -702,13 +702,19 @@ function renderScorecard() {
       </div>`;
   }).join('');
 
+  // Hole info line under the big hole number: "Norman · Par 4 · SI 7 · 385 yds"
+  // (yardage segment only when the course data stores a per-hole yardage).
+  const metaBits = [ev.courseName || ev.courseLabel || '', `Par ${cur.par}`, `SI ${cur.si}`];
+  if (cur.yds != null) metaBits.push(`${cur.yds} yds`);
+  const holeMeta = metaBits.filter(Boolean).join(' · ');
+
   body.innerHTML = `
     ${statusHtml}
     <div class="holeselector">${holeBtns}</div>
     <div class="curhole">
       <div class="nav">
         <button class="navbtn" id="prevhole" ${s.holeIdx === 0 ? 'disabled' : ''}>‹</button>
-        <div><div class="num">${cur.hole}</div><div class="meta">Par ${cur.par} · SI ${cur.si}</div></div>
+        <div><div class="num">${cur.hole}</div><div class="meta">${esc(holeMeta)}</div></div>
         <button class="navbtn" id="nexthole" ${s.holeIdx >= holes.length - 1 ? 'disabled' : ''}>›</button>
       </div>
     </div>

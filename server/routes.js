@@ -294,7 +294,15 @@ router.get('/pairings/:id', auth.requireAuth, (req, res) => {
   try {
     const meta = course && course.holes_json ? JSON.parse(course.holes_json) : null;
     if (meta && meta.length === 18) {
-      holes = S.segmentHoles(match.segment).map(h => ({ hole: h, par: meta[h - 1].par, si: meta[h - 1].si }));
+      holes = S.segmentHoles(match.segment).map(h => {
+        const m = meta[h - 1];
+        const hole = { hole: h, par: m.par, si: m.si };
+        // Per-hole yardage rides along when the course data carries it
+        // (a holes_json entry may add `yds`); omitted when not stored.
+        const yds = m.yds ?? m.yards ?? m.yardage;
+        if (yds != null) hole.yds = yds;
+        return hole;
+      });
     }
   } catch { /* leave holes null */ }
   // Who may this scorer enter for? Their pairing-mates (or anyone, if admin).

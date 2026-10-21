@@ -134,7 +134,7 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .hbtn:disabled { opacity: .35; }
 .curhole { text-align: center; margin: 4px 0 12px; }
 .curhole .num { font-size: 44px; font-weight: 800; color: var(--navy-800); line-height: 1; }
-.curhole .meta { color: var(--muted); font-size: 13px; }
+.curhole .meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .curhole .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
 .navbtn {
   width: 52px; height: 52px; border-radius: 50%; border: 1.5px solid var(--line);
@@ -142,8 +142,8 @@ table.rows td.num, table.rows th.num { text-align: right; }
 }
 .navbtn:disabled { opacity: .3; }
 .scorer-card { background: #fff; border-radius: var(--radius); padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(10,25,50,.08); }
-.scorer-card .phead { display: flex; align-items: center; gap: 8px; }
-.scorer-card .pinfo { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.scorer-card .phead { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; }
+.scorer-card .pinfo { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .scorer-card .ptext { min-width: 0; }
 .scorer-card .pname { font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .scorer-card .pname .nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -160,10 +160,10 @@ table.rows td.num, table.rows th.num { text-align: right; }
    stepper's center value cell (the white box the number sits in), one per
    stroke. Subtle, and they never change the box's size. */
 .stepdots { position: absolute; top: 3px; right: 3px; display: flex; gap: 2px; pointer-events: none; }
-.stepdots .sdot { width: 5px; height: 5px; border-radius: 50%; background: var(--ink); display: block; }
+.stepdots .sdot { width: 5px; height: 5px; border-radius: 50%; background: #64748b; display: block; }
 /* Net lives in a fixed-width slot on the right of the card, always rendered
    (value blank until a gross exists) so the card height never changes. */
-.netbox { flex: none; width: 40px; text-align: center; }
+.netbox { flex: none; width: 40px; text-align: center; justify-self: end; }
 .netbox .netlabel { font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--muted); line-height: 1.2; }
 .netbox .netval { font-size: 20px; font-weight: 800; line-height: 24px; height: 24px; }
 .sflabel { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #eef2f7; color: var(--muted); }
