@@ -851,7 +851,10 @@ async function renderMatchBoard() {
     : data.format === 'singles' ? `Match ${n} · Individual Low Net — ${esc(data.nineLabel)}`
     : `Match ${n} · Pair Low Net — ${esc(data.nineLabel)}`;
   const who = data.format === 'scramble' ? 'Team' : data.format === 'singles' ? 'Player' : 'Pair';
-  let html = `<div class="card"><h2>${label}</h2><div class="sub">Live · tap a row for hole-by-hole</div></div>`;
+  // M4/M5 are split-tee matches (each pair plays front or back); Low Net is
+  // ranked within each nine — flagged with an asterisk + footnote (Trice).
+  const splitNote = n === 4 || n === 5;
+  let html = `<div class="card"><h2>${label}${splitNote ? ' *' : ''}</h2><div class="sub">Live · tap a row for hole-by-hole</div></div>`;
   html += `<div class="boardhead"><span></span><span>${who}</span><span class="num">Thru</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     const name = data.format === 'scramble' ? r.color
@@ -864,6 +867,9 @@ async function renderMatchBoard() {
       + `<span class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}</span></summary>`
       + `<div class="body">${matchDetailHtml(data.format, r)}</div></details>`;
   });
+  if (splitNote) {
+    html += `<div class="boardnote">* Matches 4 &amp; 5 are played on either the front or back nine, depending on your group. Low Net is ranked within each nine — front-nine scores against front-nine scores, back against back.</div>`;
+  }
   el.innerHTML = html;
 }
 
