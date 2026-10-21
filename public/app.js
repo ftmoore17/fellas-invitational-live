@@ -464,7 +464,7 @@ function pairVsCard(ev, m) {
     topLine = 'Tied';
     botLine = ev.through != null ? `Thru ${ev.through}` : '';
   }
-  const statusHtml = `<div class="matchstatus"><div style="color:${leadColor};font-weight:800;font-size:1.3em">${esc(topLine)}</div>${botLine ? `<div style="color:#8895a2;font-size:1.1em;font-weight:700">${esc(botLine)}</div>` : ''}</div>`;
+  const statusHtml = `<div class="matchstatus pstatus"><div style="color:${leadColor};font-weight:800;font-size:0.95em">${esc(topLine)}</div>${botLine ? `<div style="color:#8895a2;font-size:0.8em;font-weight:700">${esc(botLine)}</div>` : ''}</div>`;
   const strip = (ev.holes || []).map(h => {
     let bg = '#eef2f7', color = 'var(--muted)';
     if (h.winner === 'A' && ev.colorA) { bg = teamHex(ev.colorA); color = '#fff'; }
@@ -472,25 +472,24 @@ function pairVsCard(ev, m) {
     else if (h.winner === 'H') { bg = '#cbd5e1'; color = '#475569'; }
     return `<div class="holepip" style="background:${bg};color:${color}">${h.hole}</div>`;
   }).join('');
-  const side = (s, color, align) => {
-    const isRight = align === 'right';
-    const labelHtml = isRight
-      ? `<div class="tlabel right">${esc(color)}<span class="swatch" style="background:${teamHex(color)};margin-left:8px"></span></div>`
-      : `<div class="tlabel"><span class="swatch" style="background:${teamHex(color)};margin-right:8px"></span>${esc(color)}</div>`;
-    return `
-    <div class="side ${align}">
-      ${labelHtml}
-      ${(s.players || []).map(p => `<div class="pname"><span class="namewrap"><span class="nametext">${esc(p.name)}</span><span class="hcpbadge">${p.strokes}</span></span></div>`).join('')}
-    </div>`;
-  };
+  // Player names on top, team label underneath. The middle is a grid whose
+  // first row holds ONLY the two name blocks and the VS badge, so the badge
+  // centers vertically on the names — the labels in the second row never
+  // pull it off-center.
+  const namesHtml = (s) => (s.players || []).map(p => `<div class="pname"><span class="namewrap"><span class="nametext">${esc(p.name)}</span><span class="hcpbadge">${p.strokes}</span></span></div>`).join('');
+  const labelHtml = (color, align) => align === 'right'
+    ? `<div class="tlabel right">${esc(color)}<span class="swatch" style="background:${teamHex(color)};margin-left:8px"></span></div>`
+    : `<div class="tlabel"><span class="swatch" style="background:${teamHex(color)};margin-right:8px"></span>${esc(color)}</div>`;
   return `
     <div class="paircard">
       <div class="phead"><span>${esc(ev.teeTime || '')}</span><span>${esc(ev.courseLabel || '')}</span></div>
       ${statusHtml}
-      <div class="vs">
-        ${side(ev.sideA, ev.colorA, '')}
+      <div class="vs pairvs">
+        <div class="vsnames a">${namesHtml(ev.sideA)}</div>
         <div class="vsbadge">VS</div>
-        ${side(ev.sideB, ev.colorB, 'right')}
+        <div class="vsnames b">${namesHtml(ev.sideB)}</div>
+        <div class="vslabel a">${labelHtml(ev.colorA, '')}</div>
+        <div class="vslabel b">${labelHtml(ev.colorB, 'right')}</div>
       </div>
       ${strip ? `<div class="holestrip">${strip}</div>` : ''}
     </div>`;
