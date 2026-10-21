@@ -579,6 +579,16 @@ router.post('/clear-all-scores', (req, res) => {
   const t = currentTournament();
   db.prepare(`DELETE FROM hole_scores`).run();
   db.prepare(`DELETE FROM scramble_scores`).run();
+  // Finalize locks pairings (pairings.locked = 1) and POST /scores rejects
+  // locked pairings — so a wipe that only deletes score rows would leave
+  // the surviving M1–M5 pairings stuck "✓ Finalized" with no scores and no
+  // way to enter new ones. Unlock this tournament's pairings along with
+  // the wipe. (M6/M7 pairings are deleted below anyway. matches.locked is
+  // a separate manual admin lock, not finalize state — left alone.)
+  const unlocked = db.prepare(`
+    UPDATE pairings SET locked = 0
+    WHERE locked = 1 AND match_id IN (SELECT id FROM matches WHERE tournament_id = ?)
+  `).run(t.id).changes;
   const m67 = db.prepare(`SELECT id FROM matches WHERE tournament_id = ? AND match_no IN (6, 7)`).all(t.id);
   let pairingsCleared = 0;
   for (const m of m67) {
@@ -586,7 +596,11 @@ router.post('/clear-all-scores', (req, res) => {
   }
   const h = db.prepare(`SELECT COUNT(*) AS c FROM hole_scores`).get().c;
   const s = db.prepare(`SELECT COUNT(*) AS c FROM scramble_scores`).get().c;
-  res.json({ ok: true, hole_scores: h, scramble_scores: s, singles_pairings_cleared: pairingsCleared });
+  // Notify connected clients like every other score mutation does, so an
+  // open Scoring tab drops the "✓ Finalized" tag without a manual reload.
+  const broadcast = req.app.locals.broadcast;
+  if (broadcast) broadcast({ type: 'scores_updated' });
+  res.json({ ok: true, hole_scores: h, scramble_scores: s, singles_pairings_cleared: pairingsCleared, pairings_unlocked: unlocked });
 });
 
 module.exports = router;

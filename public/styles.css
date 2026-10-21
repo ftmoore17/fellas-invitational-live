@@ -210,7 +210,10 @@ table.rows td.num, table.rows th.num { text-align: right; }
 /* Hole buttons size to the container: 9 across on one row for 9-hole
    matches; the 18-hole scramble wraps into two rows of 9 at the same
    size (basis = one ninth of the row after the 8 gaps). No scrolling. */
-.holeselector { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 2px 4px; }
+/* Inline padding is 5px so the selected pill's outer ring (2px white +
+   2px navy box-shadow spread) fits inside the row instead of clipping at
+   the first/last pill. */
+.holeselector { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 5px 4px; }
 .hbtn {
   flex: 1 1 calc((100% - 48px) / 9); min-width: 0; height: 40px; border-radius: 10px; border: 1.5px solid var(--line);
   background: #fff; font-weight: 700; cursor: pointer; color: var(--navy-700);
@@ -240,6 +243,9 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .scorer-card .phead { display: flex; align-items: center; gap: 8px; }
 .scorer-card .pinfo { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 0 0 124px; width: 124px; }
 .scorer-card .stepper { margin-inline: auto; }
+/* Scramble rows are gross-only — no NET slot — so the stepper pushes to
+   the right edge of the card instead of sitting in the middle. */
+.scorer-card.scr .stepper { margin-inline: auto 0; }
 .scorer-card .ptext { min-width: 0; }
 .scorer-card .pname { font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .scorer-card .pname .nametext { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

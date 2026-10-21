@@ -612,7 +612,9 @@ function scoringPlayers() {
   const d = state.scoring.detail;
   if (!d) return [];
   if (d.format === 'scramble') {
-    return [{ id: d.evaluation.teamId, name: d.evaluation.courseName || 'Team', team: true }];
+    // Scramble is scored per TEAM (gross only): the row's identity is the
+    // team's color name — not the course being played.
+    return [{ id: d.evaluation.teamId, name: d.evaluation.color || 'Team', team: d.evaluation.color || null, teamRow: true }];
   }
   const ev = d.evaluation;
   return [...(ev.sideA.players || []), ...(ev.sideB.players || [])];
@@ -672,10 +674,15 @@ function renderScorecard() {
         <div class="status-through" style="color:#8895a2">${esc(throughText)}</div>
       </div>`;
   } else {
+    // Scramble banner — three-line stack: the team's To Par (gross only,
+    // vs par of the holes completed) big in the team's color, then the
+    // words "To Par", then thru. Before any hole is scored it reads
+    // E / To Par / Thru 0.
     statusHtml = `
       <div class="score-status">
-        <div class="lead">${esc(ev.courseName || '')}</div>
-        <div class="detail">${ev.complete ? 'Final' : 'Thru ' + ev.thru} ${ev.relPar == null ? '' : '· To par ' + fmtToPar(ev.relPar)}</div>
+        <div class="status-margin" style="color:${teamHex(ev.color)}">${ev.relPar == null ? 'E' : fmtToPar(ev.relPar)}</div>
+        <div class="status-through" style="color:#8895a2">To Par</div>
+        <div class="status-through" style="color:#8895a2">${ev.complete ? 'Final' : 'Thru ' + ev.thru}</div>
       </div>`;
   }
 
@@ -711,13 +718,13 @@ function renderScorecard() {
     // Team color: prefer player's own team, fall back to side A/B
     const teamColor = p.team || (sideAIds.has(p.id) ? ev.colorA : ev.colorB);
     return `
-      <div class="scorer-card" data-pid="${p.id}" data-hs="${holeStrokes}">
+      <div class="scorer-card${isScr ? ' scr' : ''}" data-pid="${p.id}" data-hs="${holeStrokes}">
         <div class="phead">
           <div class="pinfo">
             <span class="swatch" style="background:${teamHex(teamColor)}"></span>
             <div class="ptext">
               ${isScr
-                ? `<div class="pname"><span class="nametext">${esc(p.name)}</span><span class="strokes">${hcp} STR</span></div>`
+                ? `<div class="pname"><span class="nametext">${esc(p.name)}</span></div>`
                 : `<div class="pname"><span class="namewrap"><span class="nametext">${esc(p.name)}</span><span class="hcpbadge">${hcp}</span></span></div>`}
             </div>
           </div>
@@ -726,7 +733,7 @@ function renderScorecard() {
             <div class="val" data-val><span class="vtext">${curGross == null ? '–' : curGross}</span>${!isScr && holeStrokes > 0 ? `<span class="stepdots">${'<span class="sdot"></span>'.repeat(holeStrokes)}</span>` : ''}</div>
             <button data-act="inc">+</button>
           </div>
-          ${isScr ? `<div class="netbox" aria-hidden="true"></div>` : `<div class="netbox"><div class="netlabel">NET</div><div class="netval" style="color:${teamHex(teamColor)}">${net == null ? '' : net}</div></div>`}
+          ${isScr ? '' : `<div class="netbox"><div class="netlabel">NET</div><div class="netval" style="color:${teamHex(teamColor)}">${net == null ? '' : net}</div></div>`}
         </div>
       </div>`;
   }).join('');

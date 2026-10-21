@@ -182,6 +182,9 @@ function evaluateScramblePairing(pairing, course) {
   return {
     pairingId: pairing.id,
     teamId: pairing.side_a_team_id,
+    color: pairing.side_a_team_id
+      ? db.prepare('SELECT color FROM teams WHERE id = ?').get(pairing.side_a_team_id)?.color
+      : null,
     courseId: pairing.course_id,
     courseName: course ? course.name : displayCourseName(pairing.course_label),
     teeTime: pairing.tee_time,
