@@ -264,7 +264,7 @@ async function renderLeaderboard() {
         </tr>`).join('')}
       </tbody>
     </table></div>
-    <div class="legend">MP = match points · SF = Stableford${prizeLegend()}</div>
+    <div class="legend">MP = Match Points · SF = Stableford${prizeLegend()}</div>
     <div class="section-title">Match Center</div>
     <div class="pillrow" id="lb-matchpills">
       ${matchNos.map(n => `<button class="mpill ${state.lbMatch === n ? 'active' : ''}" data-n="${n}">M${n}</button>`).join('')}
@@ -288,6 +288,16 @@ async function renderLeaderboard() {
   });
   if (!state.lbMatch) state.lbMatch = 1;
   renderLeaderboardPairs();
+}
+
+/* Prize badge for a Boards header card ("💰 $200"), read live from
+   state.tournament.prizes (Admin → Prizes). No badge at all when the
+   value is null/empty/0 — never a "$0" pill. */
+function prizeBadge(key) {
+  const p = state.tournament && state.tournament.prizes;
+  const v = p && p[key];
+  if (v == null || v === '' || !(Number(v) > 0)) return '';
+  return `<span class="prizebadge">💰 $${Number(v).toLocaleString()}</span>`;
 }
 
 function prizeLegend() {
@@ -803,7 +813,7 @@ function showConfirmPopup() {
   const players = scoringPlayers();
   const isScr = d.format === 'scramble';
   $('#confirm-summary').innerHTML = `
-    <div class="tiny" style="margin-bottom:8px">${esc(d.match.label)} — all ${holes.length} holes scored. Please review:</div>
+    <div class="tiny" style="margin-bottom:8px">${esc(d.match.label)} — all ${holes.length} holes scored. Please review GROSS scores:</div>
     <table class="conftable"><thead><tr><th>${isScr ? 'Team' : 'Player'}</th>
       ${holes.map(h => `<th class="num">${h}</th>`).join('')}<th class="num">Tot</th></tr></thead>
     <tbody>${players.map(p => {
@@ -867,7 +877,8 @@ async function renderMatchBoard() {
   // M4/M5 are split-tee matches (each pair plays front or back); Low Net is
   // ranked within each nine — flagged with an asterisk + footnote (Trice).
   const splitNote = n === 4 || n === 5;
-  let html = `<div class="card"><h2>${label}${splitNote ? ' *' : ''}</h2><div class="sub">Live · tap a row for hole-by-hole</div></div>`;
+  const prizeKey = data.format === 'scramble' ? 'scrambleLowNet' : data.format === 'singles' ? 'singlesLowNet' : 'matchLowNet';
+  let html = `<div class="card"><div class="boardtitle"><h2>${label}${splitNote ? ' *' : ''}</h2>${prizeBadge(prizeKey)}</div><div class="sub">Live · tap a row for hole-by-hole</div></div>`;
   html += `<div class="boardhead"><span></span><span>${who}</span><span class="num">Thru</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     const name = data.format === 'scramble' ? r.color
@@ -887,31 +898,46 @@ async function renderMatchBoard() {
 }
 
 /* Hole chips for the expandable board rows: gross big, net small (net omitted for scramble).
-   `taken` (optional): parallel bool array — highlighted nets counted for best ball. */
-function holeChips(holes, showNet, taken) {
-  return `<div class="dchips">${holes.map((h, i) => {
+   `taken` (optional): parallel bool array — highlighted nets counted for best ball.
+   `withTot` (optional): append a scorecard-style TOT cell — the nine's par
+   sum in the par slot, total gross big, total net in the bottom slot. The
+   totals are the player's full nine totals (every scored hole, exactly the
+   sums the old "Total X gross · Y net" line printed), not just taken nets. */
+function holeChips(holes, showNet, taken, withTot) {
+  const cells = holes.map((h, i) => {
     const g = h.gross == null ? '–' : h.gross;
     const isTaken = taken && taken[i];
     const n = showNet ? `<span class="${isTaken ? 'taken' : ''}">${h.net == null ? '–' : h.net}</span>` : '';
     const par = h.par != null ? `<i>Par ${h.par}</i>` : '';
     return `<div class="dchip"><em>${h.hole}</em>${par}<b>${g}</b>${n}</div>`;
-  }).join('')}</div>`;
+  });
+  if (withTot) {
+    let tg = 0, tn = 0, tp = 0, hasPar = false, hasGross = false, hasNet = false;
+    holes.forEach(h => {
+      if (h.gross != null) { tg += h.gross; hasGross = true; }
+      if (h.net != null) { tn += h.net; hasNet = true; }
+      if (h.par != null) { tp += h.par; hasPar = true; }
+    });
+    const n = showNet ? `<span>${hasNet ? tn : '–'}</span>` : '';
+    cells.push(`<div class="dchip tot"><em>TOT</em>${hasPar ? `<i>Par ${tp}</i>` : ''}<b>${hasGross ? tg : '–'}</b>${n}</div>`);
+  }
+  return `<div class="dchips">${cells.join('')}</div>`;
 }
 
 function matchDetailHtml(format, r) {
   if (format === 'scramble') {
     const holes = (r.holes || []).map((g, i) => ({ hole: i + 1, gross: g, par: r.pars ? r.pars[i] : null }));
+    // 18 chips render as two nines, each closed by its own TOT cell (par +
+    // gross; scramble has no per-hole nets). The old "Total · toPar · thru"
+    // text line is gone — thru/toPar still show on the board row itself.
     return `<div class="dsub">${esc(r.course || '')}${r.teeTime ? ' · ' + esc(r.teeTime) : ''}</div>`
-      + holeChips(holes, false)
-      + `<div class="dtotal">Total ${r.total == null ? '–' : r.total} · ${fmtToPar(r.toPar)} · thru ${r.thru || 0}</div>`;
+      + holeChips(holes.slice(0, 9), false, null, true)
+      + (holes.length > 9 ? holeChips(holes.slice(9, 18), false, null, true) : '');
   }
   if (format === 'singles') {
     const holes = r.detail || [];
-    let g = 0, nt = 0;
-    holes.forEach(h => { if (h.gross != null) g += h.gross; if (h.net != null) nt += h.net; });
     return (r.strokes != null ? `<div class="dsub">${r.strokes} strokes</div>` : '')
-      + holeChips(holes, true)
-      + `<div class="dtotal">Total ${g} gross · ${nt} net</div>`;
+      + holeChips(holes, true, null, true);
   }
   // best-ball pairs: one block per player; highlight each hole's taken net
   const bplayers = r.detail || [];
@@ -926,12 +952,9 @@ function matchDetailHtml(format, r) {
     takenBy.push(bi);
   }
   let bout = bplayers.map((pl, pi) => {
-    let g = 0, nt = 0;
-    (pl.holes || []).forEach(h => { if (h.gross != null) g += h.gross; if (h.net != null) nt += h.net; });
     const flags = (pl.holes || []).map((_, i) => takenBy[i] === pi);
     return `<div class="dplayer"><span class="namewrap"><span class="nametext">${esc(pl.name)}</span>${pl.strokes != null ? `<span class="hcpbadge">${pl.strokes}</span>` : ''}</span></div>`
-      + holeChips(pl.holes || [], true, flags)
-      + `<div class="dtotal">Total ${g} gross · ${nt} net</div>`;
+      + holeChips(pl.holes || [], true, flags, true);
   }).join('');
   bout += `<div class="dsub">Highlighted nets are the ones counted.</div>`;
   return bout;
@@ -943,7 +966,7 @@ async function renderWeekendBoard() {
   let data;
   try { data = await api(`/api/boards/weekend${tier}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  let html = `<div class="card"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2><div class="sub">Tap a player for per-course scoring</div></div>`;
+  let html = `<div class="card"><div class="boardtitle"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2>${prizeBadge(state.boards.tier === 'ALL' ? 'weekendLowNet' : 'tierLowNet')}</div><div class="sub">Tap a player for per-course scoring</div></div>`;
   html += `<div class="boardhead"><span></span><span>Player</span><span class="num">Thru</span><span class="num">Net</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     html += `<details class="boardrow" data-pid="${r.playerId}"${state.boards.weekendPlayer === r.playerId ? ' open' : ''}><summary><span class="rank">${i + 1}</span>`
@@ -1459,10 +1482,20 @@ async function renderCalcutta() {
     </div>`;
   }
 
+  // The split text comes from the configured payout split itself
+  // (board.payouts — the same tournament calcutta_payouts the Admin
+  // "Payout split" card writes), places with pct > 0 in finishing order.
+  // It is NOT derived from the projected-payout list, so the line always
+  // shows the configured split even before standings produce every place.
+  const splitText = [1, 2, 3]
+    .filter(p => Number((board.payouts || {})[p]) > 0)
+    .map(p => `${ordinal(p)} ${board.payouts[p]}%`)
+    .join(' / ') || '1st 100%';
+
   html += `
     <div class="card">
       <h2>Projected payouts <span class="tiny">· based on live standings</span></h2>
-      <div class="sub">Pool ${cMoney(board.pool_cents)} split ${payoutData.payouts.map(p => `${ordinal(p.place)} ${p.pct}%`).join(' / ')}.</div>
+      <div class="sub">Pool ${cMoney(board.pool_cents)} split ${splitText}.</div>
       ${payoutData.payouts.map(p => `
         <div class="cpay">
           <div class="cpay-head"><span class="cdot" style="background:${teamHex(p.color)}"></span><b>${ordinal(p.place)} · ${esc(p.color)}</b><b>${cMoney(p.prize_cents)}</b></div>

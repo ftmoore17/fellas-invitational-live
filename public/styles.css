@@ -29,13 +29,19 @@ body {
 /* ---------- header ---------- */
 #app-header {
   background: linear-gradient(160deg, var(--navy-800), var(--navy-900));
-  color: #fff; padding: 18px 16px 14px;
+  color: #fff; padding: 10px 16px 8px;
   position: sticky; top: 0; z-index: 20;
 }
+/* Title row: page title left, user name + Log out right-aligned on the
+   SAME row (the chip no longer gets a row of its own). The eyebrow keeps
+   the full width above — it would wrap if it had to share with the chip. */
+#app-header .headrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+#app-header .headrow h1 { min-width: 0; }
 #app-header .eyebrow { color: var(--gold); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; }
-#app-header h1 { margin: 2px 0 0; font-size: 26px; letter-spacing: -.01em; }
-#user-chip { margin-top: 6px; font-size: 12px; color: #bcd; }
-#user-chip button { background: none; border: none; color: var(--gold); font-size: 12px; padding: 0; margin-left: 8px; cursor: pointer; }
+#app-header h1 { margin: 2px 0 0; font-size: 24px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* User name + Log out sit top-right, on the title's row — no separate row. */
+#user-chip { font-size: 12px; color: #bcd; text-align: right; flex: none; white-space: nowrap; padding-top: 1px; }
+#user-chip button { background: none; border: none; color: var(--gold); font-size: 12px; padding: 8px 2px; margin: -6px 0 -6px 4px; cursor: pointer; }
 
 /* ---------- tab bar ---------- */
 #tab-bar {
@@ -51,7 +57,7 @@ body {
 }
 .tab-btn .tab-icon { font-size: 19px; }
 .tab-btn.active { color: #fff; background: rgba(255,255,255,.1); }
-#tab-content { padding: 12px 12px 92px; max-width: 640px; margin: 0 auto; }
+#tab-content { padding: 8px 12px 92px; max-width: 640px; margin: 0 auto; }
 
 /* ---------- cards ---------- */
 .card {
@@ -100,13 +106,13 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .pill { display: inline-block; background: #eef2f7; border-radius: 999px; padding: 2px 8px; font-size: 11.5px; font-weight: 700; color: var(--navy-700); }
 
 /* ---------- match pills / selectors ---------- */
-.pillrow { display: flex; gap: 8px; padding: 2px 2px 8px; }
+.pillrow { display: flex; gap: 8px; padding: 2px 2px 6px; }
 /* Pills inside a .pillrow share the row width equally, so all 7 match
    pills (M1–M7) fit on a phone screen with no sideways scrolling. */
 .pillrow .mpill { flex: 1 1 0; min-width: 0; padding-left: 6px; padding-right: 6px; }
 .mpill {
   flex: none; border: 1.5px solid var(--line); background: #fff; border-radius: 999px;
-  padding: 8px 16px; font-weight: 700; font-size: 13px; color: var(--navy-700); cursor: pointer;
+  padding: 12px 16px; font-weight: 700; font-size: 13px; color: var(--navy-700); cursor: pointer;
 }
 .mpill.active { background: var(--navy-800); color: #fff; border-color: var(--navy-800); }
 .mpill.done { border-color: var(--green); }
@@ -149,17 +155,17 @@ table.rows td.num, table.rows th.num { text-align: right; }
 /* ---------- scoring ---------- */
 .score-status {
   background: var(--navy-800); color: #fff; border-radius: var(--radius);
-  padding: 14px; text-align: center; margin-bottom: 12px;
+  padding: 9px 14px; text-align: center; margin-bottom: 6px;
 }
 .score-status .lead { font-size: 19px; font-weight: 800; }
 .score-status .detail { font-size: 13px; color: #bcd; margin-top: 2px; }
 .score-status .status-team { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
-.score-status .status-margin { font-size: 26px; font-weight: 800; margin-top: 2px; }
-.score-status .status-through { font-size: 13px; margin-top: 2px; opacity: .85; }
+.score-status .status-margin { font-size: 23px; font-weight: 800; margin-top: 1px; }
+.score-status .status-through { font-size: 13px; margin-top: 0; opacity: .85; }
 /* Hole buttons size to the container: 9 across on one row for 9-hole
    matches; the 18-hole scramble wraps into two rows of 9 at the same
    size (basis = one ninth of the row after the 8 gaps). No scrolling. */
-.holeselector { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 2px 10px; }
+.holeselector { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 2px 4px; }
 .hbtn {
   flex: 1 1 calc((100% - 48px) / 9); min-width: 0; height: 40px; border-radius: 10px; border: 1.5px solid var(--line);
   background: #fff; font-weight: 700; cursor: pointer; color: var(--navy-700);
@@ -167,16 +173,16 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .hbtn.active { background: var(--navy-800); color: #fff; border-color: var(--navy-800); }
 .hbtn.scored { border-color: var(--green); color: var(--green); }
 .hbtn:disabled { opacity: .35; }
-.curhole { text-align: center; margin: 4px 0 12px; }
-.curhole .num { font-size: 44px; font-weight: 800; color: var(--navy-800); line-height: 1; }
-.curhole .meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
-.curhole .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+.curhole { text-align: center; margin: 2px 0 6px; }
+.curhole .num { font-size: 36px; font-weight: 800; color: var(--navy-800); line-height: 1; }
+.curhole .meta { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+.curhole .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
 .navbtn {
-  width: 52px; height: 52px; border-radius: 50%; border: 1.5px solid var(--line);
-  background: #fff; font-size: 20px; cursor: pointer; color: var(--navy-700);
+  width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--line);
+  background: #fff; font-size: 18px; cursor: pointer; color: var(--navy-700);
 }
 .navbtn:disabled { opacity: .3; }
-.scorer-card { background: #fff; border-radius: var(--radius); padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(10,25,50,.08); }
+.scorer-card { background: #fff; border-radius: var(--radius); padding: 10px 14px; margin-bottom: 6px; box-shadow: 0 1px 3px rgba(10,25,50,.08); }
 /* Row layout: the name block is a FIXED-width column (identical in every
    row, wide enough for typical names + the superscript strokes badge;
    extreme names ellipsis inside it), the NET slot is fixed on the right,
@@ -308,8 +314,13 @@ details.boardrow .body { padding: 2px 14px 14px; }
 .dsub { font-size: 11.5px; color: var(--muted); margin: 2px 0 6px; }
 .dplayer { font-weight: 700; font-size: 13px; margin: 8px 0 2px; }
 .dplayer:first-child { margin-top: 2px; }
-.dchips { display: flex; flex-wrap: nowrap; gap: 4px; margin: 6px 0; overflow-x: auto; }
-.dchip { flex: 1 0 0; min-width: 30px; text-align: center; background: #f1f5f9; border-radius: 8px; padding: 4px 2px 5px; }
+.dchips { display: flex; flex-wrap: nowrap; gap: 3px; margin: 6px 0; overflow-x: auto; }
+.dchip { flex: 1 0 0; min-width: 0; text-align: center; background: #f1f5f9; border-radius: 8px; padding: 4px 1px 5px; }
+/* Scorecard totals column at the end of each nine: same slots as a hole
+   cell (TOT label / Par sum / gross / net) with a stronger background
+   and a left divider so it reads as the card's totals column. */
+.dchip.tot { background: #e3eaf4; box-shadow: inset 3px 0 0 var(--navy-600); }
+.dchip.tot em { color: var(--navy-700); }
 .dchip em { display: block; font-style: normal; font-size: 9px; color: var(--muted); font-weight: 700; }
 .dchip i { display: block; font-style: normal; font-size: 8.5px; line-height: 1.2; color: var(--muted); opacity: .75; }
 .dchip b { display: block; font-size: 14px; line-height: 1.25; }
@@ -327,6 +338,14 @@ details.wcrow summary .num { text-align: right; }
 .dtotal { font-size: 12px; color: var(--muted); margin: 2px 0 8px; }
 table.rows.mini { font-size: 12.5px; margin-top: 6px; }
 table.rows.mini td { padding: 8px 10px; }
+
+/* ---------- boards: header card title row + prize badge ---------- */
+.boardtitle { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.boardtitle h2 { margin: 0 0 4px; }
+.prizebadge {
+  flex: none; background: var(--gold-soft); color: #8a6d1c; border: 1px solid #e7d194;
+  font-weight: 800; font-size: 13.5px; border-radius: 999px; padding: 4px 11px; white-space: nowrap;
+}
 
 /* ---------- boards: taken-net highlight ---------- */
 .dchip span.taken { background: var(--navy-600); color: #fff; border-radius: 4px; padding: 1px 4px; font-weight: 800; }
