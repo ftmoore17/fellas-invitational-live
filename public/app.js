@@ -741,7 +741,8 @@ function renderScorecard() {
       }
     };
     paint();
-    $('[data-act="dec"]', card).onclick = () => { v = v == null ? cur.par : Math.max(1, v - 1); s.pending[`${pid}:${cur.hole}`] = v; paint(); };
+    // "−" steps down; stepping down from 1 clears back to "no score" (–).
+    $('[data-act="dec"]', card).onclick = () => { v = v == null ? cur.par : (v <= 1 ? null : v - 1); s.pending[`${pid}:${cur.hole}`] = v; paint(); };
     $('[data-act="inc"]', card).onclick = () => { v = v == null ? cur.par : Math.min(20, v + 1); s.pending[`${pid}:${cur.hole}`] = v; paint(); };
   });
 
@@ -758,7 +759,11 @@ async function saveCurrentHole() {
     const key = `${p.id}:${cur.hole}`;
     const saved = ((d.scores || {})[p.id] || {})[cur.hole];
     const v = s.pending[key] !== undefined ? s.pending[key] : saved;
-    if (v != null) entries.push({ kind: d.format === 'scramble' ? 'team' : 'player', id: p.id, hole_no: cur.hole, gross: v });
+    const kind = d.format === 'scramble' ? 'team' : 'player';
+    if (v != null) entries.push({ kind, id: p.id, hole_no: cur.hole, gross: v });
+    // Cleared in the stepper (pending null) but a score is stored: send an
+    // explicit delete so the hole goes back to "no score" on the server.
+    else if (saved != null) entries.push({ kind, id: p.id, hole_no: cur.hole, gross: null });
   }
   if (!entries.length) return;
   try {

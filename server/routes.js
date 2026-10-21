@@ -19,6 +19,7 @@
  *  (scorer: claimed player or admin)
  *  POST /api/scores  {pairing_id, entries:[{kind, id, hole_no, gross}]}
  *      kind: 'player' (best ball/singles) or 'team' (scramble).
+ *      gross: null deletes the stored score (hole back to "no score").
  *      Last write wins per hole, with "entered by" attribution.
  */
 'use strict';
@@ -343,38 +344,51 @@ router.post('/scores', auth.requireScorer, (req, res) => {
   const allowedHoles = S.segmentHoles(match.segment);
   const saveOne = db.transaction((list) => {
     for (const e of list) {
-      const gross = Number(e.gross);
-      if (!Number.isInteger(gross) || gross < 1 || gross > 20) {
-        throw new Error(`Invalid gross score: ${e.gross}`);
-      }
       const holeNo = Number(e.hole_no);
       if (!Number.isInteger(holeNo) || !allowedHoles.includes(holeNo)) {
         // 9-hole matches stop at hole 9; only the 18-hole scramble goes to 18.
         const lo = allowedHoles[0], hi = allowedHoles[allowedHoles.length - 1];
         throw new Error(`Hole ${e.hole_no} is not in this match (holes ${lo}–${hi})`);
       }
+      // gross: null clears the hole back to "no score" — the stored row is
+      // deleted, so every board/evaluation treats it as never played.
+      const clearing = e.gross === null;
+      const gross = clearing ? null : Number(e.gross);
+      if (!clearing && (!Number.isInteger(gross) || gross < 1 || gross > 20)) {
+        throw new Error(`Invalid gross score: ${e.gross}`);
+      }
       if (isScramble) {
         if (e.kind !== 'team') throw new Error('Scramble entries must be kind=team');
-        db.prepare(`
-          INSERT INTO scramble_scores (pairing_id, team_id, hole_no, gross, entered_by, entered_by_player_id, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-          ON CONFLICT(pairing_id, team_id, hole_no)
-          DO UPDATE SET gross = excluded.gross, entered_by = excluded.entered_by,
-                        entered_by_player_id = excluded.entered_by_player_id, updated_at = datetime('now')
-        `).run(pairing_id, e.id, holeNo, gross, enteredBy, enteredByPlayerId);
+        if (clearing) {
+          db.prepare(`DELETE FROM scramble_scores WHERE pairing_id = ? AND team_id = ? AND hole_no = ?`)
+            .run(pairing_id, e.id, holeNo);
+        } else {
+          db.prepare(`
+            INSERT INTO scramble_scores (pairing_id, team_id, hole_no, gross, entered_by, entered_by_player_id, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(pairing_id, team_id, hole_no)
+            DO UPDATE SET gross = excluded.gross, entered_by = excluded.entered_by,
+                          entered_by_player_id = excluded.entered_by_player_id, updated_at = datetime('now')
+          `).run(pairing_id, e.id, holeNo, gross, enteredBy, enteredByPlayerId);
+        }
       } else {
         if (e.kind !== 'player') throw new Error('Entries must be kind=player for this match');
         // The scored player must belong to this pairing.
         const inPairing = db.prepare(`SELECT 1 FROM pairing_players WHERE pairing_id = ? AND player_id = ?`)
           .get(pairing_id, e.id);
         if (!inPairing) throw new Error(`Player ${e.id} is not in this pairing`);
-        db.prepare(`
-          INSERT INTO hole_scores (pairing_id, player_id, hole_no, gross, entered_by, entered_by_player_id, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-          ON CONFLICT(pairing_id, player_id, hole_no)
-          DO UPDATE SET gross = excluded.gross, entered_by = excluded.entered_by,
-                        entered_by_player_id = excluded.entered_by_player_id, updated_at = datetime('now')
-        `).run(pairing_id, e.id, holeNo, gross, enteredBy, enteredByPlayerId);
+        if (clearing) {
+          db.prepare(`DELETE FROM hole_scores WHERE pairing_id = ? AND player_id = ? AND hole_no = ?`)
+            .run(pairing_id, e.id, holeNo);
+        } else {
+          db.prepare(`
+            INSERT INTO hole_scores (pairing_id, player_id, hole_no, gross, entered_by, entered_by_player_id, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(pairing_id, player_id, hole_no)
+            DO UPDATE SET gross = excluded.gross, entered_by = excluded.entered_by,
+                          entered_by_player_id = excluded.entered_by_player_id, updated_at = datetime('now')
+          `).run(pairing_id, e.id, holeNo, gross, enteredBy, enteredByPlayerId);
+        }
       }
     }
   });
