@@ -950,11 +950,14 @@ async function renderMatchBoard() {
 
 /* Hole chips for the expandable board rows: gross big, net small (net omitted for scramble).
    `taken` (optional): parallel bool array — highlighted nets counted for best ball.
-   `withTot` (optional): append a scorecard-style TOT cell — the nine's par
+   `withTot` (optional): append a scorecard-style TOT cell — the par
    sum in the par slot, total gross big, total net in the bottom slot. The
-   totals are the player's full nine totals (every scored hole, exactly the
-   sums the old "Total X gross · Y net" line printed), not just taken nets. */
-function holeChips(holes, showNet, taken, withTot) {
+   totals are the player's full totals over the summed holes (every scored
+   hole, exactly the sums the old "Total X gross · Y net" line printed),
+   not just taken nets. `totHoles` (optional): sum the TOT over this array
+   instead of the displayed holes — the scramble passes all 18 so its one
+   TOT is the full-18 total, not a nine subtotal. */
+function holeChips(holes, showNet, taken, withTot, totHoles) {
   const cells = holes.map((h, i) => {
     const g = h.gross == null ? '–' : h.gross;
     const isTaken = taken && taken[i];
@@ -964,7 +967,7 @@ function holeChips(holes, showNet, taken, withTot) {
   });
   if (withTot) {
     let tg = 0, tn = 0, tp = 0, hasPar = false, hasGross = false, hasNet = false;
-    holes.forEach(h => {
+    (totHoles || holes).forEach(h => {
       if (h.gross != null) { tg += h.gross; hasGross = true; }
       if (h.net != null) { tn += h.net; hasNet = true; }
       if (h.par != null) { tp += h.par; hasPar = true; }
@@ -978,12 +981,18 @@ function holeChips(holes, showNet, taken, withTot) {
 function matchDetailHtml(format, r) {
   if (format === 'scramble') {
     const holes = (r.holes || []).map((g, i) => ({ hole: i + 1, gross: g, par: r.pars ? r.pars[i] : null }));
-    // 18 chips render as two nines, each closed by its own TOT cell (par +
-    // gross; scramble has no per-hole nets). The old "Total · toPar · thru"
-    // text line is gone — thru/toPar still show on the board row itself.
+    // 18 chips render as two nines, but with ONE total: the scramble is an
+    // 18-hole match, so there's no per-nine TOT — the front nine runs open
+    // and the back nine closes with a single TOT summed over all 18 holes
+    // (full-18 par + gross; scramble has no per-hole nets). Thru/toPar
+    // still show on the board row itself.
+    if (holes.length <= 9) {
+      return `<div class="dsub">${esc(r.course || '')}${r.teeTime ? ' · ' + esc(r.teeTime) : ''}</div>`
+        + holeChips(holes, false, null, true);
+    }
     return `<div class="dsub">${esc(r.course || '')}${r.teeTime ? ' · ' + esc(r.teeTime) : ''}</div>`
-      + holeChips(holes.slice(0, 9), false, null, true)
-      + (holes.length > 9 ? holeChips(holes.slice(9, 18), false, null, true) : '');
+      + holeChips(holes.slice(0, 9), false, null, false)
+      + holeChips(holes.slice(9, 18), false, null, true, holes);
   }
   if (format === 'singles') {
     const holes = r.detail || [];
