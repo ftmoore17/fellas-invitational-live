@@ -215,6 +215,30 @@ function showMain() {
   switchTab('leaderboard');
 }
 
+/* Visible-viewport sync for the Scoring scroll lock. Mobile Safari
+   sizes 100dvh (and the max-height media queries) from the LAYOUT
+   viewport, part of which hides behind the bottom toolbar — with the
+   lock on, the completed-match Confirm Scores button landed in that
+   occluded band, invisible and untappable. visualViewport.height is
+   the height the user can actually see, so app.js publishes it as the
+   --app-h CSS variable (the locked shell's height) and mirrors the
+   CSS height tiers as body classes keyed to it (.vh-800/.vh-700/
+   .vh-720 — see styles.css). In the standalone home-screen app there
+   is no browser chrome, so the visible height equals the full
+   viewport and everything renders exactly as the CSS tiers intend. */
+function syncVisibleHeight() {
+  const vv = window.visualViewport;
+  const h = Math.round(vv ? vv.height : window.innerHeight);
+  if (!h) return;
+  document.documentElement.style.setProperty('--app-h', `${h}px`);
+  document.body.classList.toggle('vh-800', h <= 800);
+  document.body.classList.toggle('vh-700', h <= 700);
+  document.body.classList.toggle('vh-720', h <= 720);
+}
+window.addEventListener('resize', syncVisibleHeight);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', syncVisibleHeight);
+window.addEventListener('orientationchange', () => setTimeout(syncVisibleHeight, 60));
+
 function switchTab(tab) {
   state.tab = tab;
   // Scoring tab is scroll-locked (see body.scoring-lock in styles.css):
@@ -223,6 +247,7 @@ function switchTab(tab) {
   // scrolling. Live re-renders (refreshCurrentTab) don't touch the class,
   // so websocket updates preserve the lock.
   document.body.classList.toggle('scoring-lock', tab === 'scoring');
+  syncVisibleHeight();
   if (tab === 'scoring') window.scrollTo(0, 0);
   $$('#tab-bar .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $('#tab-title').textContent = TAB_TITLES[tab];
@@ -794,6 +819,10 @@ function renderScorecard() {
 
 async function saveCurrentHole() {
   const s = state.scoring, d = s.detail;
+  // Completion is judged BEFORE this save: the Confirm popup auto-opens
+  // only when this save is the one that transitions the match from
+  // incomplete to complete (see below).
+  const wasComplete = isGroupComplete();
   const cur = (d.holes || [])[s.holeIdx];
   const entries = [];
   for (const p of scoringPlayers()) {
@@ -814,6 +843,14 @@ async function saveCurrentHole() {
     const fresh = await api(`/api/pairings/${d.pairing.id}`);
     s.detail = fresh;
     renderScorecard();
+    // The save that completes the match (last open hole scored — the
+    // 9th for 9-hole matches, the 18th for the scramble) opens the
+    // Confirm Scores popup on its own, so finalizing doesn't depend on
+    // spotting the gold button. Saves made while editing an already-
+    // complete match don't re-trigger it, and it never fires on a
+    // finalized pairing. The gold button stays as the re-entry path
+    // after a Back-to-edit dismissal.
+    if (!wasComplete && !fresh.pairing.locked && isGroupComplete()) showConfirmPopup();
   } catch (e) {
     alert(e.message);
   }

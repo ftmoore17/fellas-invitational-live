@@ -68,17 +68,33 @@ body {
 
 /* ---------- scoring tab: scroll lock ----------
    While Scoring is active, switchTab puts .scoring-lock on <body> and
-   the page is pinned to the viewport: the shell becomes a 100dvh flex
-   column (header, then content; the tab bar is fixed) and neither the
-   document nor the content can scroll or rubber-band. The bottom
-   padding reserves the tab bar's space inside the locked column.
-   Vertical spacing compresses in two height tiers so the whole stack —
+   the page is pinned to the viewport: the shell becomes a flex column
+   exactly as tall as the VISIBLE viewport (header, then content; the
+   tab bar is fixed) and neither the document nor the content can
+   scroll or rubber-band. The bottom padding reserves the tab bar's
+   space inside the locked column.
+   The shell height comes from --app-h, a px value app.js keeps synced
+   to visualViewport.height. That matters in mobile Safari: 100dvh
+   there tracks the layout viewport, part of which sits behind the
+   bottom toolbar, so a dvh-sized shell pushed the gold Confirm Scores
+   button into the occluded band where it could neither be seen nor
+   tapped. visualViewport.height is the truly visible height, toolbars
+   included. Fallbacks if JS hasn't run: 100svh (small viewport =
+   chrome fully shown; identical to dvh in the standalone home-screen
+   app, where there is no browser chrome at all), then 100dvh.
+   Vertical spacing compresses in height tiers so the whole stack —
    including the gold Confirm Scores button in the completed state —
-   stays reachable on short phones. The class is removed the moment
-   another tab is chosen; every other tab scrolls exactly as before. */
-body.scoring-lock { height: 100dvh; overflow: hidden; overscroll-behavior: none; padding-bottom: 0; }
+   stays reachable on short viewports. The tiers engage on the VISIBLE
+   height: the @media blocks key off the layout height (correct in
+   standalone/Chromium, where the two heights are equal), and app.js
+   mirrors them with .vh-800/.vh-700/.vh-720 classes on <body> driven
+   by the same visualViewport measurement. The ≤720 tier is new: it is
+   what makes the completed stack fit Safari's ~660px visible height.
+   The class is removed the moment another tab is chosen; every other
+   tab scrolls exactly as before. */
+body.scoring-lock { height: 100dvh; height: 100svh; height: var(--app-h, 100svh); overflow: hidden; overscroll-behavior: none; padding-bottom: 0; }
 html:has(body.scoring-lock) { overflow: hidden; overscroll-behavior: none; }
-body.scoring-lock #main-view { height: 100dvh; min-height: 0; display: flex; flex-direction: column; }
+body.scoring-lock #main-view { height: 100dvh; height: 100svh; height: var(--app-h, 100svh); min-height: 0; display: flex; flex-direction: column; }
 body.scoring-lock #app-header { position: relative; flex: none; }
 body.scoring-lock #tab-content {
   flex: 1 1 auto; min-height: 0; overflow: hidden; width: 100%;
@@ -103,6 +119,50 @@ body.scoring-lock .btn.block { margin-top: 8px; }
   body.scoring-lock .curhole .num { font-size: 32px; }
   body.scoring-lock .scorer-card { padding-top: 6px; padding-bottom: 6px; margin-bottom: 3px; }
 }
+/* Visible-height mirrors of the two media tiers above (same values):
+   in mobile Safari the media queries see the ~844px layout height and
+   never engage, so app.js adds these classes from visualViewport.height
+   and the compression follows what the user can actually see. */
+body.scoring-lock.vh-800 #tab-content { padding-top: 4px; }
+body.scoring-lock.vh-800 .score-status { padding-top: 6px; padding-bottom: 6px; margin-bottom: 4px; }
+body.scoring-lock.vh-800 .holeselector { padding-top: 3px; padding-bottom: 5px; }
+body.scoring-lock.vh-800 .curhole { margin-top: 0; margin-bottom: 3px; }
+body.scoring-lock.vh-800 .curhole .nav { margin-top: 2px; }
+body.scoring-lock.vh-800 .scorer-card { padding-top: 6px; padding-bottom: 6px; margin-bottom: 4px; }
+body.scoring-lock.vh-800 .btn.block { margin-top: 6px; }
+body.scoring-lock.vh-700 .score-status { padding-top: 5px; padding-bottom: 5px; }
+body.scoring-lock.vh-700 .score-status .status-margin { font-size: 21px; }
+body.scoring-lock.vh-700 .curhole .num { font-size: 32px; }
+body.scoring-lock.vh-700 .scorer-card { padding-top: 6px; padding-bottom: 6px; margin-bottom: 3px; }
+/* Tight tier (visible height ≤ 720px) — the Safari-with-chrome case.
+   On top of the ≤700 values it trims banner/card/button spacing and
+   the stepper height (44px → 40px, still at the tap-target floor) so
+   the completed-match stack, Confirm Scores included, fits ~660px of
+   visible height with the lock intact. */
+@media (max-height: 720px) {
+  body.scoring-lock .pillrow .mpill { padding-top: 9px; padding-bottom: 9px; }
+  body.scoring-lock .score-status { padding-top: 3px; padding-bottom: 3px; margin-bottom: 3px; }
+  body.scoring-lock .score-status .status-margin { font-size: 19px; }
+  body.scoring-lock .score-status .status-through { font-size: 12px; }
+  body.scoring-lock .holeselector { padding-top: 2px; padding-bottom: 3px; }
+  body.scoring-lock .hbtn { height: 36px; }
+  body.scoring-lock .curhole { margin-bottom: 2px; }
+  body.scoring-lock .curhole .num { font-size: 28px; }
+  body.scoring-lock .scorer-card { padding-top: 4px; padding-bottom: 4px; margin-bottom: 2px; }
+  body.scoring-lock .scorer-card .stepper button { height: 40px; }
+  body.scoring-lock .btn.block { margin-top: 5px; }
+}
+body.scoring-lock.vh-720 .pillrow .mpill { padding-top: 9px; padding-bottom: 9px; }
+body.scoring-lock.vh-720 .score-status { padding-top: 3px; padding-bottom: 3px; margin-bottom: 3px; }
+body.scoring-lock.vh-720 .score-status .status-margin { font-size: 19px; }
+body.scoring-lock.vh-720 .score-status .status-through { font-size: 12px; }
+body.scoring-lock.vh-720 .holeselector { padding-top: 2px; padding-bottom: 3px; }
+body.scoring-lock.vh-720 .hbtn { height: 36px; }
+body.scoring-lock.vh-720 .curhole { margin-bottom: 2px; }
+body.scoring-lock.vh-720 .curhole .num { font-size: 28px; }
+body.scoring-lock.vh-720 .scorer-card { padding-top: 4px; padding-bottom: 4px; margin-bottom: 2px; }
+body.scoring-lock.vh-720 .scorer-card .stepper button { height: 40px; }
+body.scoring-lock.vh-720 .btn.block { margin-top: 5px; }
 
 /* ---------- cards ---------- */
 .card {
