@@ -222,6 +222,9 @@ table.rows td.num, table.rows th.num { text-align: right; }
 }
 .mpill.active { background: var(--navy-800); color: #fff; border-color: var(--navy-800); }
 .mpill.done { border-color: var(--green); }
+/* Leaderboard / Projected standings toggle */
+.lbmode { padding-bottom: 8px; }
+.lbmode .mpill { padding-top: 9px; padding-bottom: 9px; }
 
 /* ---------- pairing cards (match center) ---------- */
 .paircard { background: #fff; border-radius: var(--radius); box-shadow: 0 1px 3px rgba(10,25,50,.08); margin-bottom: 12px; overflow: hidden; }

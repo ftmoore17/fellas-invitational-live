@@ -200,10 +200,40 @@ function evaluateScramblePairing(pairing, course) {
 // ---------------------------------------------------------- master scoreboard
 
 /**
+ * Projected scramble placement points: rank the cards that have started
+ * by their live score vs par — if the round ended right now, they'd take
+ * the scale points for those positions. Equal live scores split the
+ * spanned positions' points evenly (same tie rule as final points).
+ * Cards not yet started get 0.
+ */
+function projectedScramblePoints(entries, scale) {
+  const points = new Map(entries.map(e => [e.teamId, 0]));
+  const started = entries.filter(e => e.thru > 0 && e.relPar != null)
+    .sort((a, b) => a.relPar - b.relPar);
+  let pos = 0, i = 0;
+  while (i < started.length) {
+    let j = i + 1;
+    while (j < started.length && started[j].relPar === started[i].relPar) j++;
+    let pts = 0;
+    for (let k = i; k < j; k++) pts += scale[pos + (k - i)] || 0;
+    pts = pts / (j - i);
+    for (let k = i; k < j; k++) points.set(started[k].teamId, pts);
+    pos += j - i;
+    i = j;
+  }
+  return points;
+}
+
+/**
  * Master scoreboard for a tournament.
  * Returns { teams: [{ teamId, color, place, back, total, matches: {1:{mp,sf},...,3:{pts},...} }] }
+ * With opts.projected, in-progress matches contribute the points they
+ * would earn if they ended right now (current leader takes the win;
+ * all-square splits 5–5; scramble places by live score vs par).
+ * Stableford is live in both views.
  */
-function computeMasterLeaderboard(tournamentId) {
+function computeMasterLeaderboard(tournamentId, opts = {}) {
+  const projected = !!(opts && opts.projected);
   const teams = getTeams(tournamentId);
   const matches = getMatches(tournamentId);
   const teamById = new Map(teams.map(t => [t.id, t]));
@@ -238,11 +268,13 @@ function computeMasterLeaderboard(tournamentId) {
         const course = getCourse(p.course_id);
         const ev = evaluateScramblePairing(p, course);
         if (!byCourse.has(p.course_id)) byCourse.set(p.course_id, []);
-        byCourse.get(p.course_id).push({ teamId: ev.teamId, holes: ev.holes, complete: ev.complete });
+        byCourse.get(p.course_id).push({ teamId: ev.teamId, holes: ev.holes, complete: ev.complete, relPar: ev.relPar, thru: ev.thru });
       }
       for (const [courseId, entries] of byCourse) {
         const scale = scaleByCourse.get(courseId) || [];
-        const pts = S.scrambleCoursePoints(entries, scale);
+        const pts = projected && entries.some(e => !e.complete)
+          ? projectedScramblePoints(entries, scale)
+          : S.scrambleCoursePoints(entries, scale);
         for (const [teamId, points] of pts) {
           const row = rowByTeam.get(teamId);
           if (row) {
@@ -256,7 +288,17 @@ function computeMasterLeaderboard(tournamentId) {
         const course = getCourse(p.course_id);
         if (!course) continue;
         const ev = evaluatePairing(p, m, course);
-        for (const [side, teamId, mp, sf] of [['A', p.side_a_team_id, ev.mpA, ev.sfA], ['B', p.side_b_team_id, ev.mpB, ev.sfB]]) {
+        // Projected: an in-progress pairing contributes the match points
+        // it would earn if it ended right now — current leader takes 10,
+        // all-square splits 5–5. Pairings with no completed holes yet
+        // project nothing.
+        let mpA = ev.mpA, mpB = ev.mpB;
+        if (projected && mpA == null && ev.through > 0) {
+          if (ev.leader === 'A') { mpA = 10; mpB = 0; }
+          else if (ev.leader === 'B') { mpA = 0; mpB = 10; }
+          else { mpA = 5; mpB = 5; }
+        }
+        for (const [side, teamId, mp, sf] of [['A', p.side_a_team_id, mpA, ev.sfA], ['B', p.side_b_team_id, mpB, ev.sfB]]) {
           if (!teamId) continue;
           const row = rowByTeam.get(teamId);
           if (!row) continue;

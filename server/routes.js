@@ -117,7 +117,7 @@ router.get('/my/groups', auth.requireAuth, (req, res) => {
 
 router.get('/leaderboard', auth.requireAuth, (req, res) => {
   const t = currentTournament();
-  res.json(LB.computeMasterLeaderboard(t.id));
+  res.json(LB.computeMasterLeaderboard(t.id, { projected: req.query.projected === '1' }));
 });
 
 router.get('/boards/match/:matchNo', auth.requireAuth, (req, res) => {

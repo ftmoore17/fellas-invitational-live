@@ -261,15 +261,46 @@ function refreshCurrentTab() {
 
 /* ============================== LEADERBOARD ============================== */
 
+const LB_MATCH_NOS = [1, 2, 3, 4, 5, 6, 7];
+
 async function renderLeaderboard() {
   const el = $('#tab-content');
-  el.innerHTML = `<div class="card center tiny">Loading leaderboard…</div>`;
-  let data;
-  try { data = await api('/api/leaderboard'); }
-  catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
+  el.innerHTML = `
+    <div id="lb-standings"><div class="card center tiny">Loading leaderboard…</div></div>
+    <div class="section-title">Match Center</div>
+    <div class="pillrow" id="lb-matchpills">
+      ${LB_MATCH_NOS.map(n => `<button class="mpill ${state.lbMatch === n ? 'active' : ''}" data-n="${n}">M${n}</button>`).join('')}
+    </div>
+    <div id="lb-pairs"><div class="card center tiny">Loading pairings…</div></div>`;
+  $$('#lb-matchpills .mpill').forEach(b => b.onclick = () => {
+    state.lbMatch = Number(b.dataset.n);
+    $$('#lb-matchpills .mpill').forEach(x => x.classList.toggle('active', Number(x.dataset.n) === state.lbMatch));
+    renderLeaderboardPairs();
+  });
+  if (!state.lbMatch) state.lbMatch = 1;
+  renderStandings();
+  renderLeaderboardPairs();
+}
 
-  const matchNos = [1, 2, 3, 4, 5, 6, 7];
-  let html = `
+/* Standings table with the Leaderboard / Projected toggle at the top.
+   Projected credits in-progress matches as they stand right now: the
+   current leader of each pairing takes the match points, an all-square
+   pairing splits them, and the scramble places by live score. Only the
+   standings swap — the Match Center below is shared by both views. */
+async function renderStandings() {
+  const host = $('#lb-standings');
+  if (!host) return;
+  const proj = state.lbMode === 'proj';
+  let data;
+  try { data = await api('/api/leaderboard' + (proj ? '?projected=1' : '')); }
+  catch (e) { host.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
+
+  const matchNos = LB_MATCH_NOS;
+  host.innerHTML = `
+    <div class="pillrow lbmode">
+      <button class="mpill ${proj ? '' : 'active'}" data-mode="live">Leaderboard</button>
+      <button class="mpill ${proj ? 'active' : ''}" data-mode="proj">Projected</button>
+    </div>
     <div class="board-wrap"><table class="board">
       <thead><tr>
         <th style="text-align:left;padding-left:30px">Team</th>
@@ -296,30 +327,22 @@ async function renderLeaderboard() {
         </tr>`).join('')}
       </tbody>
     </table></div>
-    <div class="legend">MP = Match Points · SF = Stableford${prizeLegend()}</div>
-    <div class="section-title">Match Center</div>
-    <div class="pillrow" id="lb-matchpills">
-      ${matchNos.map(n => `<button class="mpill ${state.lbMatch === n ? 'active' : ''}" data-n="${n}">M${n}</button>`).join('')}
-    </div>
-    <div id="lb-pairs"><div class="card center tiny">Loading pairings…</div></div>`;
+    <div class="legend">${proj ? 'Projected — every match scored as it stands right now<br>' : ''}MP = Match Points · SF = Stableford${prizeLegend()}</div>`;
 
-  el.innerHTML = html;
+  $$('#lb-standings .lbmode .mpill').forEach(b => b.onclick = () => {
+    if (state.lbMode === b.dataset.mode) return;
+    state.lbMode = b.dataset.mode;
+    renderStandings();
+  });
   // Standings accordion: tap a team name to expand its roster (tier +
   // member) inline below its row. One team open at a time; tapping the
   // open team closes it. The open team is kept in state.lbTeam so live
   // re-renders keep it open.
-  $$('#tab-content .teamtoggle').forEach(td => td.onclick = () => {
+  $$('#lb-standings .teamtoggle').forEach(td => td.onclick = () => {
     const id = Number(td.dataset.team);
     state.lbTeam = state.lbTeam === id ? null : id;
-    $$('#tab-content tr.teamdetail').forEach(r => { r.hidden = Number(r.dataset.team) !== state.lbTeam; });
+    $$('#lb-standings tr.teamdetail').forEach(r => { r.hidden = Number(r.dataset.team) !== state.lbTeam; });
   });
-  $$('#lb-matchpills .mpill').forEach(b => b.onclick = () => {
-    state.lbMatch = Number(b.dataset.n);
-    $$('#lb-matchpills .mpill').forEach(x => x.classList.toggle('active', Number(x.dataset.n) === state.lbMatch));
-    renderLeaderboardPairs();
-  });
-  if (!state.lbMatch) state.lbMatch = 1;
-  renderLeaderboardPairs();
 }
 
 /* Prize badge for a Boards header card ("💰 $200"), read live from
