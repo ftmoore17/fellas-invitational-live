@@ -337,8 +337,8 @@ table.rows td.num, table.rows th.num { text-align: right; }
    number translateY(-50%) → translateY(calc(-50% + 2px)) (the number
    sits 2px below the gross value's centerline). */
 .netbox { flex: none; width: 40px; text-align: center; position: relative; align-self: stretch; }
-.netbox .netlabel { position: absolute; top: 0; left: 0; right: 0; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--muted); line-height: 1.2; }
-.netbox .netval { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(calc(-50% + 2px)); font-size: 22px; font-weight: 800; line-height: 1; }
+.netbox .netlabel { position: absolute; top: 4px; left: 0; right: 0; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--muted); line-height: 1.2; }
+.netbox .netval { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(calc(-50% + 6px)); font-size: 22px; font-weight: 800; line-height: 1; }
 .sflabel { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #eef2f7; color: var(--muted); }
 .sflabel.birdie { background: var(--gold); color: var(--navy-900); }
 .sflabel.eagle { background: var(--navy-800); color: #fff; }
