@@ -981,18 +981,25 @@ function holeChips(holes, showNet, taken, withTot, totHoles) {
 function matchDetailHtml(format, r) {
   if (format === 'scramble') {
     const holes = (r.holes || []).map((g, i) => ({ hole: i + 1, gross: g, par: r.pars ? r.pars[i] : null }));
-    // 18 chips render as two nines, but with ONE total: the scramble is an
-    // 18-hole match, so there's no per-nine TOT — the front nine runs open
-    // and the back nine closes with a single TOT summed over all 18 holes
-    // (full-18 par + gross; scramble has no per-hole nets). Thru/toPar
-    // still show on the board row itself.
+    // Scorecard layout: the two nines stack in aligned columns and ONE
+    // total box spans both rows on the right — the scramble is an 18-hole
+    // match, so the only total is the full-18 (par + gross; scramble has
+    // no per-hole nets). Thru/toPar still show on the board row itself.
     if (holes.length <= 9) {
       return `<div class="dsub">${esc(r.course || '')}${r.teeTime ? ' · ' + esc(r.teeTime) : ''}</div>`
         + holeChips(holes, false, null, true);
     }
+    let tg = 0, tp = 0, hasPar = false, hasGross = false;
+    holes.forEach(h => {
+      if (h.gross != null) { tg += h.gross; hasGross = true; }
+      if (h.par != null) { tp += h.par; hasPar = true; }
+    });
+    const tot = `<div class="dchip tot tall"><em>TOT</em>${hasPar ? `<i>Par ${tp}</i>` : ''}<b>${hasGross ? tg : '–'}</b></div>`;
     return `<div class="dsub">${esc(r.course || '')}${r.teeTime ? ' · ' + esc(r.teeTime) : ''}</div>`
+      + `<div class="dcard18"><div class="nines">`
       + holeChips(holes.slice(0, 9), false, null, false)
-      + holeChips(holes.slice(9, 18), false, null, true, holes);
+      + holeChips(holes.slice(9, 18), false, null, false)
+      + `</div>${tot}</div>`;
   }
   if (format === 'singles') {
     const holes = r.detail || [];

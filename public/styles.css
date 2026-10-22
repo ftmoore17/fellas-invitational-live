@@ -440,6 +440,12 @@ details.boardrow .body { padding: 2px 14px 14px; }
    rounded corner and overlap the "Par NN" text). The cell is wider
    than a hole cell (flex-grow 1.7) so "Par 36" always fits unclipped. */
 .dchip.tot { background: #e3eaf4; border-left: 3px solid var(--navy-600); flex-grow: 1.7; padding-right: 4px; }
+/* Scramble 18-hole scorecard: front and back nines stacked in aligned
+   columns, with one taller TOT box spanning both rows on the right. */
+.dcard18 { display: flex; gap: 3px; margin: 6px 0; align-items: stretch; }
+.dcard18 .nines { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.dcard18 .dchips { margin: 0; }
+.dchip.tot.tall { flex: 0 0 13.5%; display: flex; flex-direction: column; justify-content: center; }
 .dchip em, .dchip i { white-space: nowrap; }
 .dchip.tot em { color: var(--navy-700); }
 .dchip em { display: block; font-style: normal; font-size: 9px; color: var(--muted); font-weight: 700; }
