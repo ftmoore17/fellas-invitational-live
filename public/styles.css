@@ -91,10 +91,10 @@ body.scoring-lock .btn.block { margin-top: 8px; }
 @media (max-height: 800px) {
   body.scoring-lock #tab-content { padding-top: 4px; }
   body.scoring-lock .score-status { padding-top: 6px; padding-bottom: 6px; margin-bottom: 4px; }
-  body.scoring-lock .holeselector { padding-top: 0; padding-bottom: 2px; }
+  body.scoring-lock .holeselector { padding-top: 3px; padding-bottom: 5px; }
   body.scoring-lock .curhole { margin-top: 0; margin-bottom: 3px; }
   body.scoring-lock .curhole .nav { margin-top: 2px; }
-  body.scoring-lock .scorer-card { padding-top: 7px; padding-bottom: 7px; margin-bottom: 4px; }
+  body.scoring-lock .scorer-card { padding-top: 6px; padding-bottom: 6px; margin-bottom: 4px; }
   body.scoring-lock .btn.block { margin-top: 6px; }
 }
 @media (max-height: 700px) {
@@ -213,7 +213,7 @@ table.rows td.num, table.rows th.num { text-align: right; }
 /* Inline padding is 5px so the selected pill's outer ring (2px white +
    2px navy box-shadow spread) fits inside the row instead of clipping at
    the first/last pill. */
-.holeselector { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 5px 4px; }
+.holeselector { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 5px 8px; }
 .hbtn {
   flex: 1 1 calc((100% - 48px) / 9); min-width: 0; height: 40px; border-radius: 10px; border: 1.5px solid var(--line);
   background: #fff; font-weight: 700; cursor: pointer; color: var(--navy-700);
@@ -230,7 +230,7 @@ table.rows td.num, table.rows th.num { text-align: right; }
   background: #fff; font-size: 18px; cursor: pointer; color: var(--navy-700);
 }
 .navbtn:disabled { opacity: .3; }
-.scorer-card { background: #fff; border-radius: var(--radius); padding: 10px 14px; margin-bottom: 6px; box-shadow: 0 1px 3px rgba(10,25,50,.08); }
+.scorer-card { background: #fff; border-radius: var(--radius); padding: 8px 14px; margin-bottom: 6px; box-shadow: 0 1px 3px rgba(10,25,50,.08); }
 /* Row layout: the name block is a FIXED-width column (identical in every
    row, wide enough for typical names + the superscript strokes badge;
    extreme names ellipsis inside it), the NET slot is fixed on the right,
