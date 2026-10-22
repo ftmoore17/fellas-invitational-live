@@ -356,8 +356,7 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .btn:disabled { opacity: .5; }
 input, select, textarea {
   width: 100%; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px;
-  /* 16px minimum: iOS Safari auto-zooms focused fields below this size. */
-  font-size: 16px; margin: 6px 0; background: #fff; color: var(--ink);
+  font-size: 15px; margin: 6px 0; background: #fff; color: var(--ink);
 }
 label.f { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .err { color: var(--red); font-size: 13px; margin-top: 6px; font-weight: 600; }
@@ -485,7 +484,7 @@ table.rows.mini td { padding: 8px 10px; }
 .cbid-amt { font-weight: 700; white-space: nowrap; }
 .cpaidmark { color: var(--green); font-weight: 800; }
 .cpending { color: #b97f2a; font-size: 12px; font-weight: 600; }
-input.camt { width: 76px; padding: 8px; margin: 0; font-size: 16px; }
+input.camt { width: 76px; padding: 8px; margin: 0; font-size: 14px; }
 input.camt.cerr { border-color: var(--red); }
 .cpaid, .cdel { border: 1.5px solid var(--line); background: #fff; border-radius: 10px; width: 38px; height: 38px; font-size: 16px; cursor: pointer; flex: none; }
 .cpaid.on { border-color: var(--green); background: #f0fdf4; }
