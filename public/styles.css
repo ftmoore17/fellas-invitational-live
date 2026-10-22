@@ -329,12 +329,16 @@ table.rows td.num, table.rows th.num { text-align: right; }
 /* Net lives in a fixed-width slot on the right of the card, always rendered
    (value blank until a gross exists) so the card height never changes.
    The slot stretches to the row height (= the stepper's height); the NET
-   number is the same size as the gross value and centered on the same
-   height as it, with the little label floated above so it can't push the
-   number down (label nudged up 4px so it clears the top of the number). */
+   number is the same size as the gross value, with the little label
+   floated above so it can't push the number down.
+   TRIAL offsets (owner asked to see the NET pair nudged down a hair;
+   revert = restore just these two values): label top -4px → 0 (the old
+   4px upward nudge is gone, so the label sits closer to the number) and
+   number translateY(-50%) → translateY(calc(-50% + 2px)) (the number
+   sits 2px below the gross value's centerline). */
 .netbox { flex: none; width: 40px; text-align: center; position: relative; align-self: stretch; }
-.netbox .netlabel { position: absolute; top: -4px; left: 0; right: 0; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--muted); line-height: 1.2; }
-.netbox .netval { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(-50%); font-size: 22px; font-weight: 800; line-height: 1; }
+.netbox .netlabel { position: absolute; top: 0; left: 0; right: 0; font-size: 10px; font-weight: 800; letter-spacing: .08em; color: var(--muted); line-height: 1.2; }
+.netbox .netval { position: absolute; top: 50%; left: 0; right: 0; transform: translateY(calc(-50% + 2px)); font-size: 22px; font-weight: 800; line-height: 1; }
 .sflabel { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: #eef2f7; color: var(--muted); }
 .sflabel.birdie { background: var(--gold); color: var(--navy-900); }
 .sflabel.eagle { background: var(--navy-800); color: #fff; }
