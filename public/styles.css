@@ -180,6 +180,11 @@ table.board { border-collapse: collapse; width: 100%; background: var(--navy-800
 table.board th, table.board td { padding: 7px 2px; text-align: center; white-space: nowrap; }
 table.board thead th { color: #9fb2d4; font-size: 9.5px; text-transform: uppercase; letter-spacing: .03em; }
 table.board .sfsep { margin-left: 2px; }
+/* Standings MP/SF: fixed slots so the two numbers never merge into one.
+   An empty MP slot (no final pairing yet) stays blank instead of showing
+   a dash that reads as a minus sign next to the SF number. */
+table.board .mpv { display: inline-block; min-width: 1.25em; text-align: right; }
+table.board .sfv { display: inline-block; min-width: 1.25em; text-align: right; margin-left: .5em; }
 table.board tbody td { border-top: 1px solid rgba(255,255,255,.08); }
 table.board td.teamcell { text-align: left; }
 table.board td.teamtoggle { cursor: pointer; }
