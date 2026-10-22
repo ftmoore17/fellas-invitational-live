@@ -176,9 +176,10 @@ body.scoring-lock.vh-720 .btn.block { margin-top: 5px; }
 
 /* ---------- scoreboard table ---------- */
 .board-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius); }
-table.board { border-collapse: collapse; width: 100%; background: var(--navy-800); color: #fff; font-size: 12.5px; }
-table.board th, table.board td { padding: 7px 8px; text-align: center; white-space: nowrap; }
-table.board thead th { color: #9fb2d4; font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; }
+table.board { border-collapse: collapse; width: 100%; background: var(--navy-800); color: #fff; font-size: 11px; }
+table.board th, table.board td { padding: 7px 2px; text-align: center; white-space: nowrap; }
+table.board thead th { color: #9fb2d4; font-size: 9.5px; text-transform: uppercase; letter-spacing: .03em; }
+table.board .sfsep { margin-left: 2px; }
 table.board tbody td { border-top: 1px solid rgba(255,255,255,.08); }
 table.board td.teamcell { text-align: left; }
 table.board td.teamtoggle { cursor: pointer; }
@@ -188,16 +189,16 @@ table.board td.teamtoggle { cursor: pointer; }
 table.board tr.teamdetail[hidden] { display: none; }
 table.board tr.teamdetail td {
   text-align: left; white-space: normal; background: rgba(255,255,255,.05);
-  padding: 8px 10px 11px 49px;
+  padding: 8px 10px 11px 30px;
 }
 .teammembers { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .tmember { font-size: 12px; color: #c9d6ee; }
 .tmember b { color: var(--gold); font-weight: 800; }
-.teamcell .tname { font-weight: 700; display: flex; align-items: center; gap: 7px; }
+.teamcell .tname { font-weight: 700; display: flex; align-items: center; gap: 4px; }
 .teamcell .back { font-size: 11px; color: #9fb2d4; margin-left: 26px; }
 .swatch { width: 10px; height: 22px; border-radius: 5px; display: inline-block; flex: none; vertical-align: middle; }
-.place { font-weight: 800; color: var(--gold); width: 34px; display: inline-block; }
-td.total { font-weight: 800; color: var(--gold); font-size: 14px; }
+.place { font-weight: 800; color: var(--gold); width: 24px; display: inline-block; }
+td.total { font-weight: 800; color: var(--gold); font-size: 13px; }
 .legend { font-size: 12px; color: var(--muted); margin: 8px 4px; }
 
 /* ---------- generic tables (boards) ---------- */
@@ -355,7 +356,8 @@ table.rows td.num, table.rows th.num { text-align: right; }
 .btn:disabled { opacity: .5; }
 input, select, textarea {
   width: 100%; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px;
-  font-size: 15px; margin: 6px 0; background: #fff; color: var(--ink);
+  /* 16px minimum: iOS Safari auto-zooms focused fields below this size. */
+  font-size: 16px; margin: 6px 0; background: #fff; color: var(--ink);
 }
 label.f { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .err { color: var(--red); font-size: 13px; margin-top: 6px; font-weight: 600; }
@@ -483,7 +485,7 @@ table.rows.mini td { padding: 8px 10px; }
 .cbid-amt { font-weight: 700; white-space: nowrap; }
 .cpaidmark { color: var(--green); font-weight: 800; }
 .cpending { color: #b97f2a; font-size: 12px; font-weight: 600; }
-input.camt { width: 76px; padding: 8px; margin: 0; font-size: 14px; }
+input.camt { width: 76px; padding: 8px; margin: 0; font-size: 16px; }
 input.camt.cerr { border-color: var(--red); }
 .cpaid, .cdel { border: 1.5px solid var(--line); background: #fff; border-radius: 10px; width: 38px; height: 38px; font-size: 16px; cursor: pointer; flex: none; }
 .cpaid.on { border-color: var(--green); background: #f0fdf4; }

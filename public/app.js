@@ -272,7 +272,7 @@ async function renderLeaderboard() {
   let html = `
     <div class="board-wrap"><table class="board">
       <thead><tr>
-        <th style="text-align:left;padding-left:41px">Team</th>
+        <th style="text-align:left;padding-left:30px">Team</th>
         ${matchNos.map(n => n === 3 ? `<th>M3<br><span style="font-weight:400">PTS</span></th>`
           : `<th>M${n}<br><span style="font-weight:400">MP&nbsp;SF</span></th>`).join('')}
         <th>Total</th>
@@ -287,7 +287,7 @@ async function renderLeaderboard() {
             const c = t.matches[n];
             if (!c) return `<td>–</td>`;
             if (n === 3) return `<td>${c.pts == null ? '–' : c.pts}</td>`;
-            return `<td>${c.mp == null ? '–' : c.mp}&nbsp;&nbsp;${c.sf || 0}</td>`;
+            return `<td>${c.mp == null ? '–' : c.mp}<span class="sfsep">${c.sf || 0}</span></td>`;
           }).join('')}
           <td class="total">${t.total}</td>
         </tr>
