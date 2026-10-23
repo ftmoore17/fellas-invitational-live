@@ -148,7 +148,7 @@ async function main() {
   const spectatorCode = 'FELLAS26';
   const t = db.prepare(`
     INSERT INTO tournaments (name, year, status, spectator_code, prize_settings)
-    VALUES ('Fellas Invitational', 2026, 'setup', ?, ?)
+    VALUES ('The Fellas', 2026, 'setup', ?, ?)
   `).run(spectatorCode, JSON.stringify(PRIZES)).lastInsertRowid;
   console.log(`Tournament id=${t}, spectator code=${spectatorCode}`);
 

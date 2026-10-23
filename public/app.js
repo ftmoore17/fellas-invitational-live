@@ -106,7 +106,7 @@ function renderAuth() {
   v.classList.remove('hidden');
   v.innerHTML = `
     <div class="auth-inner">
-      <div class="eyebrow">The Fellas Invitational · Live Scoring</div>
+      <div class="eyebrow">The Fellas · Live Scoring</div>
       <h1>Welcome to the Fellas</h1>
       <p class="sub">Live scores, standings, and brackets for the weekend. Pick how you're joining.</p>
       <button class="rolebtn" id="role-player"><b>⛳ I'm Playing</b><span>Claim your name with your PIN to enter scores.</span></button>
