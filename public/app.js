@@ -316,7 +316,7 @@ async function renderStandings() {
           </td>
           ${matchNos.map(n => {
             const c = t.matches[n];
-            if (!c) return `<td></td>`;
+            if (!c || !c.started) return `<td></td>`;
             if (n === 3) return `<td>${c.pts == null ? '' : c.pts}</td>`;
             return `<td><span class="mpv">${c.mp == null ? '' : c.mp}</span><span class="sfv">${c.sf || 0}</span></td>`;
           }).join('')}

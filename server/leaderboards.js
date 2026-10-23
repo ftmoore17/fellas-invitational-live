@@ -275,10 +275,11 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
         const pts = projected && entries.some(e => !e.complete)
           ? projectedScramblePoints(entries, scale)
           : S.scrambleCoursePoints(entries, scale);
+        const startedByTeam = new Map(entries.map(e => [e.teamId, e.thru > 0]));
         for (const [teamId, points] of pts) {
           const row = rowByTeam.get(teamId);
           if (row) {
-            row.matches[m.match_no] = { pts: points };
+            row.matches[m.match_no] = { pts: points, started: !!startedByTeam.get(teamId) };
             row.total += points;
           }
         }
@@ -302,11 +303,14 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
           if (!teamId) continue;
           const row = rowByTeam.get(teamId);
           if (!row) continue;
-          const cell = row.matches[m.match_no] || (row.matches[m.match_no] = { mp: 0, sf: 0, hasFinal: false });
+          const cell = row.matches[m.match_no] || (row.matches[m.match_no] = { mp: 0, sf: 0, hasFinal: false, started: false });
           // MP counts as soon as THAT pairing is final; a team's cell sums
-          // its completed pairings. Cell shows a dash until at least one
-          // of the team's pairings in the match is final.
+          // its completed pairings. Cell MP stays null until at least one
+          // of the team's pairings in the match is final. `started` = any
+          // of the team's pairings in the match has a completed hole —
+          // the client blanks the whole cell until then (no idle zeros).
           if (mp != null) { cell.mp += mp; cell.hasFinal = true; }
+          if (ev.through > 0) cell.started = true;
           cell.sf += sf;
         }
       }
