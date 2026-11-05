@@ -41,6 +41,19 @@ function stablefordPoints(net, par) {
   return 0;
 }
 
+/**
+ * Low Net cap (Trice, 2026-11-05): in Low Net computations ONLY, a hole's
+ * net counts no worse than net double bogey (par + 2). Match play,
+ * Stableford, and every score display keep using the actual net — the cap
+ * is applied only inside the Low Net board aggregations (leaderboards.js).
+ * For scramble (no handicaps, gross team scores) the same helper caps the
+ * team's hole score at par + 2.
+ */
+function lowNetCap(net, par) {
+  if (net == null) return null;
+  return Math.min(net, par + 2);
+}
+
 /** Hole numbers for a segment: front = 1..9, back = 10..18, full = 1..18. */
 function segmentHoles(segment) {
   if (segment === 'front') return [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -202,6 +215,7 @@ module.exports = {
   courseHandicap,
   strokesOnHole,
   stablefordPoints,
+  lowNetCap,
   segmentHoles,
   playerSegmentScore,
   sideBestBallNets,

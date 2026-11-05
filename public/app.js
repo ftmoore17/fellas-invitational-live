@@ -962,9 +962,12 @@ async function renderMatchBoard() {
     html += `<details class="boardrow"><summary><span class="rank">${i + 1}</span>`
       + `<span class="bname"><span class="swatch" style="background:${teamHex(color)}"></span><span class="t">${esc(name)}</span></span>`
       + `<span class="num">${r.thru || '–'}</span>`
-      + `<span class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}</span></summary>`
+      + `<span class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}${r.capped ? '*' : ''}</span></summary>`
       + `<div class="body">${matchDetailHtml(data.format, r)}</div></details>`;
   });
+  if (data.rows.some(r => r.capped)) {
+    html += `<div class="boardnote">*Hole capped at net double bogey max.</div>`;
+  }
   if (splitNote) {
     html += `<div class="boardnote">* Matches 4 &amp; 5 are played on either the front or back nine, depending on your group. Low Net is ranked within each nine — front-nine scores against front-nine scores, back against back.</div>`;
   }
@@ -1062,10 +1065,13 @@ async function renderWeekendBoard() {
     html += `<details class="boardrow" data-pid="${r.playerId}"${state.boards.weekendPlayer === r.playerId ? ' open' : ''}><summary><span class="rank">${i + 1}</span>`
       + `<span class="bname"><span class="swatch" style="background:${teamHex(r.color)}"></span><span class="t">${esc(r.name)} <span class="pill">${esc(r.tier || '')}</span></span></span>`
       + `<span class="num">${r.thru || '–'}</span>`
-      + `<span class="num">${r.netTotal == null ? '–' : r.netTotal}</span>`
-      + `<span class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}</span></summary>`
+      + `<span class="num">${r.netTotal == null ? '–' : r.netTotal + (r.capped ? '*' : '')}</span>`
+      + `<span class="num ${toParClass(r.toPar)}">${fmtToPar(r.toPar)}${r.capped ? '*' : ''}</span></summary>`
       + `<div class="body">${weekendDetailHtml(r)}</div></details>`;
   });
+  if (data.rows.some(r => r.capped)) {
+    html += `<div class="boardnote">*Hole capped at net double bogey max.</div>`;
+  }
   el.innerHTML = html;
   // Accordion state survives live re-renders (same pattern as the
   // Leaderboard standings): remember which player row is open, and make
@@ -1127,9 +1133,12 @@ async function renderNineBoard(nine) {
     html += `<tr><td class="rank">${i + 1}</td>
       <td><span class="swatch" style="background:${teamHex(r.color)}"></span> ${esc(r.name)} <span class="pill">${esc(r.tier || '')}</span></td>
       <td class="num">${r.thru || '–'}</td>
-      <td class="num">${r.netTotal == null ? '–' : r.netTotal}</td></tr>`;
+      <td class="num">${r.netTotal == null ? '–' : r.netTotal + (r.capped ? '*' : '')}</td></tr>`;
   });
   html += `</tbody></table>`;
+  if (data.rows.some(r => r.capped)) {
+    html += `<div class="boardnote">*Hole capped at net double bogey max.</div>`;
+  }
   el.innerHTML = html;
 }
 

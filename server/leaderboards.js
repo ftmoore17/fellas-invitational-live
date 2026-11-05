@@ -12,6 +12,12 @@
  *  - Match Low Net boards: tied on net → higher Stableford ranks higher
  *    (pairs M1/2/4/5, individuals M6/7). Scramble (M3) has no Stableford;
  *    ties there use the USGA scorecard playoff, same as the points prize.
+ * Low Net cap (Trice, 2026-11-05): every Low Net figure below counts a
+ * hole at no worse than net double bogey (see cappedNets / S.lowNetCap).
+ * Rows carry `capped` when any hole was adjusted; the client marks those
+ * rows with an asterisk. Match play, Stableford, scramble placement
+ * points, the score export, and all score displays keep actual scores —
+ * stored scores are never altered.
  */
 'use strict';
 
@@ -61,6 +67,26 @@ function holesMeta(course) {
 /** Player's 18-hole course handicap on Black tees for a course. */
 function playerCH(player, course) {
   return S.courseHandicap(player.ghin_index, course.black_slope, course.black_rating, course.black_par);
+}
+
+/**
+ * Capped Low Net aggregates over a per-hole nets map: every played hole's
+ * net counts at most par + 2 (net double bogey max). Returns the capped
+ * net total, the capped to-par, and whether any hole was actually capped
+ * (drives the board asterisk).
+ */
+function cappedNets(nets, meta) {
+  let net = 0, toPar = 0, capped = false;
+  if (!meta) return { net, toPar, capped };
+  for (const [h, n] of nets) {
+    if (n == null) continue;
+    const par = meta[h - 1].par;
+    const c = S.lowNetCap(n, par);
+    if (c !== n) capped = true;
+    net += c;
+    toPar += c - par;
+  }
+  return { net, toPar, capped };
 }
 
 function getPairings(matchId) {
@@ -359,10 +385,27 @@ function computeMatchBoard(tournamentId, matchNo) {
       const course = getCourse(p.course_id);
       const ev = evaluateScramblePairing(p, course);
       const meta = holesMeta(course);
+      // Low Net cap: the team's hole score counts no worse than double
+      // bogey (scramble plays gross, so the cap is par + 2 on the gross).
+      // Only the board's total / to-par are capped — the expanded
+      // scorecard holes and the placement-points playoff keep actuals.
+      let total = ev.total, toPar = ev.relPar, capped = false;
+      if (ev.thru && meta) {
+        let ct = 0, cp = 0;
+        ev.holes.forEach((g, i) => {
+          if (g == null) return;
+          const c = S.lowNetCap(g, meta[i].par);
+          if (c !== g) capped = true;
+          ct += c;
+          cp += c - meta[i].par;
+        });
+        total = ct; toPar = cp;
+      }
       rows.push({
         teamId: ev.teamId, color: teams.get(ev.teamId),
         course: ev.courseName, teeTime: ev.teeTime,
-        total: ev.thru ? ev.total : null, toPar: ev.relPar,
+        total: ev.thru ? total : null, toPar,
+        capped,
         thru: ev.thru, complete: ev.complete,
         // 18-hole gross array (null = unplayed) — powers the expandable scorecard
         holes: ev.holes,
@@ -392,26 +435,26 @@ function computeMatchBoard(tournamentId, matchNo) {
       const gross = grossByPlayer(p.id);
       for (const side of [ev.sideA, ev.sideB]) {
         for (const pl of side.players) {
-          // Live to-par over the player's scored holes.
-          let toPar = 0;
-          for (const h of holes) {
-            const n = pl.nets.get(h);
-            if (n == null || !meta) continue;
-            toPar += n - meta[h - 1].par;
-          }
+          // Low Net figures use the capped nets (net double bogey max per
+          // hole) — the board's net, to-par, and detail chips all come
+          // from the capped values so the row reconciles. Gross and
+          // Stableford stay actual.
+          const cap = cappedNets(pl.nets, meta);
           // Hole-by-hole detail for the expandable board row.
           const gmap = gross.get(pl.id) || new Map();
           const detail = holes.map(h => ({
             hole: h,
             par: meta ? meta[h - 1].par : null,
             gross: gmap.get(h) ?? null,
-            net: pl.nets.get(h) ?? null,
+            net: meta ? S.lowNetCap(pl.nets.get(h) ?? null, meta[h - 1].par)
+              : (pl.nets.get(h) ?? null),
           }));
           rows.push({
             playerId: pl.id, name: pl.name, tier: pl.tier,
             color: teams.get(side.teamId), teamId: side.teamId,
-            strokes: pl.strokes, net: pl.thru ? pl.netTotal : null,
-            toPar: pl.thru ? toPar : null,
+            strokes: pl.strokes, net: pl.thru ? cap.net : null,
+            toPar: pl.thru ? cap.toPar : null,
+            capped: cap.capped,
             thru: pl.thru, sf: pl.sf,
             detail,
           });
@@ -434,12 +477,19 @@ function computeMatchBoard(tournamentId, matchNo) {
     const gross = grossByPlayer(p.id);
     for (const [side, key] of [[ev.sideA, 'A'], [ev.sideB, 'B']]) {
       const nets = S.sideBestBallNets(side.players.map(pl => pl.nets), holes);
-      let net = 0, toPar = 0, thru = 0;
+      let net = 0, toPar = 0, thru = 0, capped = false;
       for (const h of holes) {
         const n = nets.get(h);
         if (n == null) break;
-        net += n; thru++;
-        if (meta) toPar += n - meta[h - 1].par;
+        // Low Net cap: the pair's counted (best-ball) net counts no worse
+        // than net double bogey on the hole. Capping the best-ball net is
+        // the same as capping each partner first — min commutes with the
+        // cap — so the detail chips below cap each player's net and the
+        // highlighted (counted) nets still sum to the pair total.
+        const c = meta ? S.lowNetCap(n, meta[h - 1].par) : n;
+        if (c !== n) capped = true;
+        net += c; thru++;
+        if (meta) toPar += c - meta[h - 1].par;
       }
       // Hole-by-hole detail per player for the expandable board row.
       const detail = side.players.map(pl => {
@@ -450,7 +500,8 @@ function computeMatchBoard(tournamentId, matchNo) {
             hole: h,
             par: meta ? meta[h - 1].par : null,
             gross: gmap.get(h) ?? null,
-            net: pl.nets.get(h) ?? null,
+            net: meta ? S.lowNetCap(pl.nets.get(h) ?? null, meta[h - 1].par)
+              : (pl.nets.get(h) ?? null),
           })),
         };
       });
@@ -458,6 +509,7 @@ function computeMatchBoard(tournamentId, matchNo) {
         teamId: side.teamId, color: teams.get(side.teamId),
         players: side.players.map(pl => ({ id: pl.id, name: pl.name, strokes: pl.strokes })),
         net: thru ? net : null, toPar: thru ? toPar : null, thru,
+        capped,
         sf: side.players.reduce((s, pl) => s + pl.sf, 0),
         detail,
       });
@@ -481,6 +533,9 @@ function nineLabel(segment) {
 function playerMatchAggregate(playerId, match) {
   const player = db.prepare(`SELECT * FROM players WHERE id = ?`).get(playerId);
   let gross = 0, net = 0, sf = 0, holes = 0, toPar = 0;
+  // Low Net capped variants (net double bogey max per hole) alongside the
+  // actuals — Low Net boards use these; everything else keeps actuals.
+  let cappedNet = 0, cappedToPar = 0, capped = false;
   const pps = db.prepare(`
     SELECT pp.pairing_id FROM pairing_players pp
     JOIN pairings p ON p.id = pp.pairing_id
@@ -500,8 +555,10 @@ function playerMatchAggregate(playerId, match) {
     for (const [h, n] of seg.nets) {
       if (n != null) toPar += n - meta[h - 1].par;
     }
+    const cap = cappedNets(seg.nets, meta);
+    cappedNet += cap.net; cappedToPar += cap.toPar; capped = capped || cap.capped;
   }
-  return { gross, net, sf, holes, toPar };
+  return { gross, net, sf, holes, toPar, cappedNet, cappedToPar, capped };
 }
 
 /**
@@ -627,18 +684,22 @@ function computeNineLowNet(tournamentId, nine) {
   const players = getPlayers(tournamentId);
   const matches = getMatches(tournamentId).filter(m => m.segment === nine && m.format !== 'scramble');
   const rows = players.map(pl => {
-    let grossTotal = 0, netTotal = 0, sfTotal = 0, holesPlayed = 0;
+    let grossTotal = 0, netTotal = 0, sfTotal = 0, holesPlayed = 0, capped = false;
     const perMatch = {};
     for (const m of matches) {
       const agg = playerMatchAggregate(pl.id, m);
-      if (agg.holes) perMatch[m.match_no] = { net: agg.net, thru: agg.holes, sf: agg.sf };
-      grossTotal += agg.gross; netTotal += agg.net; sfTotal += agg.sf; holesPlayed += agg.holes;
+      if (agg.holes) perMatch[m.match_no] = { net: agg.cappedNet, thru: agg.holes, sf: agg.sf };
+      // Low Net board: the net total is the capped figure (net double
+      // bogey max per hole). Gross and Stableford stay actual.
+      grossTotal += agg.gross; netTotal += agg.cappedNet; sfTotal += agg.sf; holesPlayed += agg.holes;
+      capped = capped || agg.capped;
     }
     return {
       playerId: pl.id, name: pl.name, tier: pl.tier,
       color: pl.team_color, teamId: pl.team_id,
       grossTotal: holesPlayed ? grossTotal : null,
       netTotal: holesPlayed ? netTotal : null,
+      capped,
       sfTotal, thru: holesPlayed,
       perMatch,
     };
@@ -683,10 +744,11 @@ function playerCourseAggregates(playerId) {
       );
       if (!grossMap.size) continue;
       const seg = S.playerSegmentScore(grossMap, meta, playerCH(player, course), m.segment);
-      let toPar = 0;
-      for (const [h, n] of seg.nets) {
-        if (n != null) toPar += n - meta[h - 1].par;
-      }
+      // This breakdown belongs to the Weekend Low Net board, so its net
+      // figures use the capped Low Net values (net double bogey max per
+      // hole) and reconcile with the board row's totals. Gross stays
+      // actual.
+      const cap = cappedNets(seg.nets, meta);
       if (!byCourse.has(course.name)) {
         byCourse.set(course.name, {
           course: course.name, gross: 0, net: 0, toPar: 0, thru: 0, sf: 0,
@@ -694,7 +756,7 @@ function playerCourseAggregates(playerId) {
         });
       }
       const a = byCourse.get(course.name);
-      a.gross += seg.grossTotal; a.net += seg.netTotal; a.toPar += toPar;
+      a.gross += seg.grossTotal; a.net += cap.net; a.toPar += cap.toPar;
       a.thru += seg.holesPlayed; a.sf += seg.stableford;
       // Per-hole scorecard detail, accumulated over the same pairings and
       // segment scores as the totals above, so the holes always reconcile
@@ -706,7 +768,7 @@ function playerCourseAggregates(playerId) {
         if (g == null) continue;
         const cell = a.holeMap.get(h) || { hole: h, par: meta[h - 1].par, gross: 0, net: 0 };
         cell.gross += g;
-        cell.net += seg.nets.get(h) ?? 0;
+        cell.net += S.lowNetCap(seg.nets.get(h), meta[h - 1].par) ?? 0;
         a.holeMap.set(h, cell);
       }
     }
@@ -734,14 +796,17 @@ function computeWeekendLowNet(tournamentId, tier = null) {
   const rows = [];
 
   for (const pl of players) {
-    let grossTotal = 0, netTotal = 0, sfTotal = 0, toParTotal = 0, holesPlayed = 0;
+    let grossTotal = 0, netTotal = 0, sfTotal = 0, toParTotal = 0, holesPlayed = 0, capped = false;
     for (const m of matches) {
       const agg = playerMatchAggregate(pl.id, m);
       grossTotal += agg.gross;
-      netTotal += agg.net;
+      // Low Net board: net / to-par are the capped figures (net double
+      // bogey max per hole). Gross and Stableford stay actual.
+      netTotal += agg.cappedNet;
       sfTotal += agg.sf;
-      toParTotal += agg.toPar;
+      toParTotal += agg.cappedToPar;
       holesPlayed += agg.holes;
+      capped = capped || agg.capped;
     }
     rows.push({
       playerId: pl.id, name: pl.name, tier: pl.tier,
@@ -749,6 +814,7 @@ function computeWeekendLowNet(tournamentId, tier = null) {
       grossTotal: holesPlayed ? grossTotal : null,
       netTotal: holesPlayed ? netTotal : null,
       toPar: holesPlayed ? toParTotal : null,
+      capped,
       sfTotal,
       thru: holesPlayed,
       // Per-course breakdown for the expandable row.
