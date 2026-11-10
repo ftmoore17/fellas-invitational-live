@@ -304,9 +304,9 @@ async function renderStandings() {
     <div class="board-wrap"><table class="board">
       <thead><tr>
         <th style="text-align:left;padding-left:30px">Team</th>
-        ${matchNos.map(n => n === 3 ? `<th>M3<br><span style="font-weight:400">PTS</span></th>`
-          : `<th>M${n}<br><span style="font-weight:400"><span class="mpv">MP</span><span class="sfv">SF</span></span></th>`).join('')}
+        ${matchNos.map(n => `<th>M${n}</th>`).join('')}
         <th>Total</th>
+        <th>Holes</th>
       </tr></thead>
       <tbody>
       ${data.teams.map(t => `
@@ -318,16 +318,17 @@ async function renderStandings() {
             const c = t.matches[n];
             if (!c || !c.started) return `<td></td>`;
             if (n === 3) return `<td>${c.pts == null ? '' : c.pts}</td>`;
-            return `<td><span class="mpv">${c.mp == null ? '' : c.mp}</span><span class="sfv">${c.sf || 0}</span></td>`;
+            return `<td>${c.mp == null ? '' : c.mp}</td>`;
           }).join('')}
           <td class="total">${t.total}</td>
+          <td>${t.holesDiff > 0 ? '+' + t.holesDiff : t.holesDiff}</td>
         </tr>
         <tr class="teamdetail" data-team="${t.teamId}"${state.lbTeam === t.teamId ? '' : ' hidden'}>
-          <td colspan="9"><div class="teammembers">${(t.members || []).map(m => `<span class="tmember"><b>${esc(m.tier || '–')}</b> · ${esc(m.name)}</span>`).join('')}</div></td>
+          <td colspan="10"><div class="teammembers">${(t.members || []).map(m => `<span class="tmember"><b>${esc(m.tier || '–')}</b> · ${esc(m.name)}</span>`).join('')}</div></td>
         </tr>`).join('')}
       </tbody>
     </table></div>
-    <div class="legend">${proj ? 'Projected — every match scored as it stands right now<br>' : ''}MP = Match Points · SF = Stableford${prizeLegend()}</div>`;
+    <div class="legend">${proj ? 'Projected — every match scored as it stands right now<br>' : ''}Win = 2 pts · Tie = 1 pt · Holes = tiebreaker (holes won − lost, all 9 count)${prizeLegend()}</div>`;
 
   $$('#lb-standings .lbmode .mpill').forEach(b => b.onclick = () => {
     if (state.lbMode === b.dataset.mode) return;
@@ -918,6 +919,8 @@ async function renderBoards() {
     <div class="pillrow" id="board-tabs">
       <button class="mpill ${b.view === 'match' ? 'active' : ''}" data-v="match">Match Low Net</button>
       <button class="mpill ${b.view === 'weekend' ? 'active' : ''}" data-v="weekend">Weekend Low Net</button>
+      <button class="mpill ${b.view === 'tickets' ? 'active' : ''}" data-v="tickets">Raffle Tickets</button>
+      <button class="mpill ${b.view === 'tiebreaker' ? 'active' : ''}" data-v="tiebreaker">Tiebreaker</button>
     </div>
     <div id="board-sub"></div>
     <div id="board-body"><div class="card center tiny">Loading…</div></div>`;
@@ -933,9 +936,75 @@ async function renderBoards() {
       `<button class="mpill ${b.tier === t ? 'active' : ''}" data-t="${t}">${t === 'ALL' ? 'All' : 'Tier ' + t}</button>`).join('')}</div>`;
     $$('#board-sub .mpill').forEach(x => x.onclick = () => { state.boards.tier = x.dataset.t; renderBoards(); });
     renderWeekendBoard();
+  } else if (b.view === 'tickets') {
+    sub.innerHTML = '';
+    renderTicketsBoard();
+  } else if (b.view === 'tiebreaker') {
+    sub.innerHTML = '';
+    renderTiebreakerBoard();
   } else {
     renderNineBoard(b.view);
   }
+}
+
+async function renderTicketsBoard() {
+  const el = $('#board-body');
+  let data;
+  try { data = await api('/api/boards/tickets'); }
+  catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
+  const rows = data.rows.filter(r => r.thru > 0);
+  let html = `<div class="card"><div class="boardtitle"><h2>Raffle Tickets</h2></div><div class="boardsubrow"><div class="sub">Birdies, eagles, and albatrosses earn tickets for the prize drawing.</div></div></div>`;
+  if (!rows.length) {
+    html += `<div class="card center tiny">No scores yet.</div>`;
+  } else {
+    html += `<div class="board-wrap"><table class="board">
+      <thead><tr>
+        <th style="text-align:left;padding-left:30px">Player</th>
+        <th>NB</th><th>GB</th><th>NE</th><th>GE</th><th>NA</th>
+        <th>Tickets</th>
+      </tr></thead>
+      <tbody>
+      ${rows.map((r, i) => `
+        <tr>
+          <td class="teamcell"><span class="tname"><span class="place">${i + 1}</span><span class="swatch" style="background:${teamHex(r.color)}"></span><span style="font-weight:700">${esc(r.name)}</span></span></td>
+          <td>${r.netBirdies || ''}</td>
+          <td>${r.grossBirdies || ''}</td>
+          <td>${r.netEagles || ''}</td>
+          <td>${r.grossEagles || ''}</td>
+          <td>${r.netAlbatrosses || ''}</td>
+          <td class="total">${r.tickets}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>
+    <div class="legend">NB = net birdie (1 ticket) · GB = gross birdie (2) · NE = net eagle (3) · GE = gross eagle (4) · NA = net albatross (6). Each hole counts once, for its best score. The scramble doesn't count.</div>`;
+  }
+  el.innerHTML = html;
+}
+
+async function renderTiebreakerBoard() {
+  const el = $('#board-body');
+  let data;
+  try { data = await api('/api/boards/tiebreaker'); }
+  catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
+  let html = `<div class="card"><div class="boardtitle"><h2>Tiebreaker · Holes Won / Lost</h2></div><div class="boardsubrow"><div class="sub">Standings ties break on holes won minus holes lost.</div></div></div>`;
+  html += `<div class="board-wrap"><table class="board">
+    <thead><tr>
+      <th style="text-align:left;padding-left:30px">Team</th>
+      <th>Pts</th><th>Won</th><th>Lost</th><th>+/-</th>
+    </tr></thead>
+    <tbody>
+    ${data.rows.map((r, i) => `
+      <tr>
+        <td class="teamcell"><span class="tname"><span class="place">${i + 1}</span><span style="color:${teamHex(r.color)};font-weight:700">${esc(r.color)}</span></span></td>
+        <td>${r.points}</td>
+        <td>${r.holesWon}</td>
+        <td>${r.holesLost}</td>
+        <td class="total">${r.holesDiff > 0 ? '+' + r.holesDiff : r.holesDiff}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table></div>
+  <div class="legend">All 9 holes of every match count, even after the match is decided.</div>`;
+  el.innerHTML = html;
 }
 
 async function renderMatchBoard() {

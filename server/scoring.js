@@ -8,13 +8,19 @@
  *    For 9-hole segments the 18-hole CH is halved and rounded.
  *  - Strokes allocated by stroke index (standard: SI ≤ CH gets a stroke,
  *    second/third rounds on low-SI holes when CH > 18).
- *  - Stableford (net): birdie = 1, eagle = 3, albatross = 6, condor = 12.
- *  - Match play (9 holes): win = 10 pts, tie = 5–5, loss = 0.
+ *  - Match play (9 holes): win = 2 pts, tie = 1–1, loss = 0 (format change,
+ *    Trice 2026-11-10 — Stableford no longer counts toward team points).
  *    Match Points stay empty until the match is FINAL (all holes complete).
- *  - Scramble: no handicaps; per-course placement by finishing position
- *    with USGA scorecard playoff (last 9, last 6, last 3, hole-by-hole back
- *    from 18). Unbreakable ties split the position points evenly.
- *    Overall low-net scramble ranks by score RELATIVE TO PAR.
+ *  - Team tiebreaker: holes won − holes lost across every match, counting
+ *    ALL 9 holes — including holes played after a match was decided.
+ *  - Raffle tickets (individual, best ball + singles only): each hole pays
+ *    its best achievement — net birdie 1, gross birdie 2, net eagle 3,
+ *    gross eagle 4, net albatross (or better) 6. See leaderboards.js.
+ *  - Scramble: no handicaps; per-course placement points come from the
+ *    field-size ladder (see scrambleLadder in leaderboards.js). Finishing
+ *    order uses the USGA scorecard playoff (last 9, last 6, last 3,
+ *    hole-by-hole back from 18). Unbreakable ties split the position
+ *    points evenly. Overall low-net scramble ranks by score RELATIVE TO PAR.
  */
 'use strict';
 
@@ -114,14 +120,20 @@ function matchPlayResult(sideANets, sideBNets, holes) {
   let upA = 0;           // holes won by A minus holes won by B (live, unlocked)
   let through = 0;       // contiguous completed holes from segment start
   let contiguous = true;
+  // Tiebreaker tally (Trice, 2026-11-10): holes won/lost across ALL 9
+  // holes, including holes played after the match was decided. The match
+  // result below still locks at closeout — these counters never lock.
+  let holesWonA = 0, holesWonB = 0;
   // Locked result: once lead > remaining, the match is decided and the result freezes.
-  // Subsequent holes don't change the match outcome (but still count for thru, Stableford, Low Net).
+  // Subsequent holes don't change the match outcome (but still count for thru, Low Net, and the holes tiebreaker).
   let lockedUpA = null;
   let lockedRemaining = null;
   for (const h of holes) {
     const a = sideANets.get(h), b = sideBNets.get(h);
     if (a == null || b == null) { contiguous = false; continue; }
     if (contiguous) through++;
+    if (a < b) holesWonA++;
+    else if (b < a) holesWonB++;
     if (lockedUpA === null) {
       if (a < b) upA++;
       else if (b < a) upA--;
@@ -149,14 +161,14 @@ function matchPlayResult(sideANets, sideBNets, holes) {
   // Null if not yet decided, or 0 if decided on the last hole (display as "X Up").
   const closedOut = lockedRemaining;
 
-  return { status, through, final, winner, upA: effUpA, closedOut, leader: effUpA > 0 ? 'A' : effUpA < 0 ? 'B' : null };
+  return { status, through, final, winner, upA: effUpA, closedOut, leader: effUpA > 0 ? 'A' : effUpA < 0 ? 'B' : null, holesWonA, holesWonB };
 }
 
-/** Match points for a final result: winner 10, tie 5–5, loser 0. */
+/** Match points for a final result: winner 2, tie 1–1, loser 0. */
 function matchPointsFor(winner, side) {
   if (!winner) return null;              // not final → dash
-  if (winner === 'T') return 5;
-  return winner === side ? 10 : 0;
+  if (winner === 'T') return 1;
+  return winner === side ? 2 : 0;
 }
 
 /**

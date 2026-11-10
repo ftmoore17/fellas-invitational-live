@@ -7,8 +7,14 @@
  *  - Weekend low-net individuals (M1,2,4,5,6,7 only — scramble excluded),
  *    with tier filter and gross+net totals.
  *  - Schedule + match detail with live match-play status and hole strips.
- * Tiebreakers (Trice, 2026-10-13):
- *  - Team standings: tied on total → higher Stableford (sfTotal) ranks higher.
+ * Format (Trice, 2026-11-10): matches pay 2 (win) / 1 (tie) / 0, scramble
+ * pays from the field-size ladder, and Stableford no longer counts toward
+ * team points. Raffle tickets (individual birdie/eagle/albatross pot) live
+ * on their own board (computeTicketBoard).
+ * Tiebreakers:
+ *  - Team standings: tied on points → higher holes differential ranks
+ *    higher (holes won − holes lost across every match, ALL 9 holes
+ *    counting — even holes played after a match was decided).
  *  - Match Low Net boards: tied on net → higher Stableford ranks higher
  *    (pairs M1/2/4/5, individuals M6/7). Scramble (M3) has no Stableford;
  *    ties there use the USGA scorecard playoff, same as the points prize.
@@ -173,6 +179,9 @@ function evaluatePairing(pairing, match, course) {
     status: mp.status, through: mp.through, final: mp.final,
     winner: mp.winner, leader: mp.leader, closedOut: mp.closedOut,
     mpA, mpB, sfA, sfB,
+    // Tiebreaker holes: won/lost across all 9 holes (never locks).
+    holesWonA: mp.holesWonA, holesWonB: mp.holesWonB,
+    holesDiff: mp.holesWonA - mp.holesWonB,
     sideA, sideB,
     colorA: db.prepare('SELECT color FROM teams WHERE id = ?').get(pairing.side_a_team_id)?.color,
     colorB: db.prepare('SELECT color FROM teams WHERE id = ?').get(pairing.side_b_team_id)?.color,
@@ -251,12 +260,28 @@ function projectedScramblePoints(entries, scale) {
 }
 
 /**
+ * Scramble placement ladder (Trice, 2026-11-10): points by finishing
+ * place, sized to the number of teams on the course. The full scale is
+ * 6–1 for six teams; a smaller field takes the middle of the scale
+ * (four teams → 5,4,3,2); a larger field extends it (seven → 7–1).
+ * Supersedes the per-course points_scale stored in the DB.
+ */
+function scrambleLadder(fieldSize) {
+  const FULL = [6, 5, 4, 3, 2, 1];
+  if (fieldSize >= 6) {
+    return Array.from({ length: fieldSize }, (_, i) => fieldSize - i);
+  }
+  const start = Math.round((6 - fieldSize) / 2);
+  return FULL.slice(start, start + fieldSize);
+}
+
+/**
  * Master scoreboard for a tournament.
- * Returns { teams: [{ teamId, color, place, back, total, matches: {1:{mp,sf},...,3:{pts},...} }] }
+ * Returns { teams: [{ teamId, color, place, back, total, holesDiff,
+ *   holesWon, holesLost, matches: {1:{mp},...,3:{pts},...} }] }
  * With opts.projected, in-progress matches contribute the points they
  * would earn if they ended right now (current leader takes the win;
- * all-square splits 5–5; scramble places by live score vs par).
- * Stableford is live in both views.
+ * all-square splits 1–1; scramble places by live score vs par).
  */
 function computeMasterLeaderboard(tournamentId, opts = {}) {
   const projected = !!(opts && opts.projected);
@@ -278,7 +303,7 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
   }
 
   const rows = teams.map(t => ({
-    teamId: t.id, color: t.color, total: 0, sfTotal: 0,
+    teamId: t.id, color: t.color, total: 0, holesDiff: 0, holesWon: 0, holesLost: 0,
     matches: {}, members: membersByTeam.get(t.id) || [],
   }));
   const rowByTeam = new Map(rows.map(r => [r.teamId, r]));
@@ -286,9 +311,8 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
   for (const m of matches) {
     const pairings = getPairings(m.id);
     if (m.format === 'scramble') {
-      // Per-course points.
-      const scCourses = db.prepare(`SELECT * FROM scramble_courses WHERE match_id = ?`).all(m.id);
-      const scaleByCourse = new Map(scCourses.map(sc => [sc.course_id, JSON.parse(sc.points_scale)]));
+      // Per-course points, from the field-size ladder (the stored
+      // per-course points_scale is superseded by the 2026-11-10 format).
       const byCourse = new Map(); // courseId -> entries[]
       for (const p of pairings) {
         const course = getCourse(p.course_id);
@@ -297,7 +321,7 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
         byCourse.get(p.course_id).push({ teamId: ev.teamId, holes: ev.holes, complete: ev.complete, relPar: ev.relPar, thru: ev.thru });
       }
       for (const [courseId, entries] of byCourse) {
-        const scale = scaleByCourse.get(courseId) || [];
+        const scale = scrambleLadder(entries.length);
         const pts = projected && entries.some(e => !e.complete)
           ? projectedScramblePoints(entries, scale)
           : S.scrambleCoursePoints(entries, scale);
@@ -316,20 +340,26 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
         if (!course) continue;
         const ev = evaluatePairing(p, m, course);
         // Projected: an in-progress pairing contributes the match points
-        // it would earn if it ended right now — current leader takes 10,
-        // all-square splits 5–5. Pairings with no completed holes yet
+        // it would earn if it ended right now — current leader takes 2,
+        // all-square splits 1–1. Pairings with no completed holes yet
         // project nothing.
         let mpA = ev.mpA, mpB = ev.mpB;
         if (projected && mpA == null && ev.through > 0) {
-          if (ev.leader === 'A') { mpA = 10; mpB = 0; }
-          else if (ev.leader === 'B') { mpA = 0; mpB = 10; }
-          else { mpA = 5; mpB = 5; }
+          if (ev.leader === 'A') { mpA = 2; mpB = 0; }
+          else if (ev.leader === 'B') { mpA = 0; mpB = 2; }
+          else { mpA = 1; mpB = 1; }
         }
-        for (const [side, teamId, mp, sf] of [['A', p.side_a_team_id, mpA, ev.sfA], ['B', p.side_b_team_id, mpB, ev.sfB]]) {
+        // Tiebreaker holes accumulate for every pairing, decided or not —
+        // all 9 holes count, including any played after the closeout.
+        const rowA = rowByTeam.get(p.side_a_team_id);
+        const rowB = rowByTeam.get(p.side_b_team_id);
+        if (rowA) { rowA.holesWon += ev.holesWonA; rowA.holesLost += ev.holesWonB; rowA.holesDiff += ev.holesDiff; }
+        if (rowB) { rowB.holesWon += ev.holesWonB; rowB.holesLost += ev.holesWonA; rowB.holesDiff -= ev.holesDiff; }
+        for (const [side, teamId, mp] of [['A', p.side_a_team_id, mpA], ['B', p.side_b_team_id, mpB]]) {
           if (!teamId) continue;
           const row = rowByTeam.get(teamId);
           if (!row) continue;
-          const cell = row.matches[m.match_no] || (row.matches[m.match_no] = { mp: 0, sf: 0, hasFinal: false, started: false });
+          const cell = row.matches[m.match_no] || (row.matches[m.match_no] = { mp: 0, hasFinal: false, started: false });
           // MP counts as soon as THAT pairing is final; a team's cell sums
           // its completed pairings. Cell MP stays null until at least one
           // of the team's pairings in the match is final. `started` = any
@@ -337,22 +367,20 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
           // the client blanks the whole cell until then (no idle zeros).
           if (mp != null) { cell.mp += mp; cell.hasFinal = true; }
           if (ev.through > 0) cell.started = true;
-          cell.sf += sf;
         }
       }
-      // Total = completed match points + live Stableford.
+      // Total = completed match points only (no Stableford since 2026-11-10).
       for (const row of rows) {
         const cell = row.matches[m.match_no];
         if (!cell) continue;
-        row.total += cell.sf + cell.mp;
-        row.sfTotal += cell.sf;
+        row.total += cell.mp;
         cell.mp = cell.hasFinal ? cell.mp : null;
         delete cell.hasFinal;
       }
     }
   }
 
-  rows.sort((a, b) => b.total - a.total || b.sfTotal - a.sfTotal);
+  rows.sort((a, b) => b.total - a.total || b.holesDiff - a.holesDiff);
   const leader = rows.length ? rows[0].total : 0;
   rows.forEach((r, i) => {
     r.place = i + 1;
@@ -826,6 +854,93 @@ function computeWeekendLowNet(tournamentId, tier = null) {
   return { tier: tier || 'ALL', rows };
 }
 
+// ---------------------------------------------------------- raffle tickets
+
+/**
+ * Raffle ticket board (Trice, 2026-11-10): the individual birdie / eagle /
+ * albatross pot that replaced Stableford. Each hole a player scores in a
+ * best-ball or singles match pays its BEST achievement only:
+ *   net albatross (or better) = 6 · gross eagle (or better) = 4
+ *   net eagle = 3 · gross birdie = 2 · net birdie = 1
+ * Scramble is excluded — no individual scores there. Counts are the
+ * player's own ball in best ball (not the pair's best ball).
+ */
+function ticketForHole(gross, net, par) {
+  const gU = par - gross, nU = par - net;
+  if (nU >= 3) return { key: 'netAlbatrosses', pts: 6 };
+  if (gU >= 2) return { key: 'grossEagles', pts: 4 };
+  if (nU === 2) return { key: 'netEagles', pts: 3 };
+  if (gU === 1) return { key: 'grossBirdies', pts: 2 };
+  if (nU === 1) return { key: 'netBirdies', pts: 1 };
+  return null;
+}
+
+function computeTicketBoard(tournamentId) {
+  const players = getPlayers(tournamentId);
+  const matches = getMatches(tournamentId).filter(m => m.format !== 'scramble');
+  const rows = [];
+  for (const pl of players) {
+    const counts = { netBirdies: 0, grossBirdies: 0, netEagles: 0, grossEagles: 0, netAlbatrosses: 0 };
+    let tickets = 0, holes = 0;
+    for (const m of matches) {
+      const pps = db.prepare(`
+        SELECT pp.pairing_id FROM pairing_players pp
+        JOIN pairings p ON p.id = pp.pairing_id
+        WHERE pp.player_id = ? AND p.match_id = ?
+      `).all(pl.id, m.id);
+      for (const { pairing_id } of pps) {
+        const pairing = db.prepare(`SELECT * FROM pairings WHERE id = ?`).get(pairing_id);
+        const course = getCourse(pairing.course_id);
+        if (!course) continue;
+        const meta = holesMeta(course);
+        if (!meta) continue;
+        const grossMap = new Map(
+          getHoleScores(pairing_id).filter(s => s.player_id === pl.id).map(s => [s.hole_no, s.gross])
+        );
+        if (!grossMap.size) continue;
+        const seg = S.playerSegmentScore(grossMap, meta, playerCH(pl, course), m.segment);
+        for (const h of S.segmentHoles(m.segment)) {
+          const gross = grossMap.get(h);
+          const net = seg.nets.get(h);
+          if (gross == null || net == null) continue;
+          holes++;
+          const t = ticketForHole(gross, net, meta[h - 1].par);
+          if (t) { counts[t.key]++; tickets += t.pts; }
+        }
+      }
+    }
+    rows.push({
+      playerId: pl.id, name: pl.name, tier: pl.tier,
+      color: pl.team_color, teamId: pl.team_id,
+      ...counts, tickets, thru: holes,
+    });
+  }
+  const achievements = r => r.netBirdies + r.grossBirdies + r.netEagles + r.grossEagles + r.netAlbatrosses;
+  rows.sort((a, b) => b.tickets - a.tickets || achievements(b) - achievements(a) || a.name.localeCompare(b.name));
+  return { rows };
+}
+
+// ------------------------------------------------------------- tiebreaker
+
+/**
+ * Tiebreaker board (Trice, 2026-11-10): team holes won / lost across
+ * every best-ball and singles match. All 9 holes of each match count —
+ * including holes played after the match was decided — so a team that
+ * closes a match out early can still stretch (or bleed) its differential.
+ * Sorted by differential; the standings use the same number to break
+ * point ties.
+ */
+function computeTiebreakerBoard(tournamentId) {
+  const lb = computeMasterLeaderboard(tournamentId);
+  const rows = lb.teams.map(t => ({
+    teamId: t.teamId, color: t.color,
+    holesWon: t.holesWon, holesLost: t.holesLost, holesDiff: t.holesDiff,
+    points: t.total,
+  }));
+  rows.sort((a, b) => b.holesDiff - a.holesDiff || b.points - a.points);
+  return { rows };
+}
+
 // ----------------------------------------------------------------- schedule
 
 /**
@@ -982,6 +1097,9 @@ module.exports = {
   computeMatchBoard,
   computeWeekendLowNet,
   computeNineLowNet,
+  computeTicketBoard,
+  computeTiebreakerBoard,
+  scrambleLadder,
   nineLabel,
   computeScoreExport,
   scoreExportCSV,

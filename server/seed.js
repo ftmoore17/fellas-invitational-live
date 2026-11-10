@@ -2,8 +2,9 @@
  * Seed script — loads the 2026 test tournament.
  *
  * Source: ~/workspace/fellas-invitational-scoring/test-data-2026.md
- * Scramble points scales use the CORRECTED 2026-10-13 values
- * (Norman 40/30/25/20/15/10, Fazio 40/30/20/10).
+ * Scramble points scales use the 2026-11-10 field-size ladder
+ * (Norman 6/5/4/3/2/1, Fazio 5/4/3/2). Note the live leaderboard computes
+ * the ladder from the field size and ignores these stored values.
  *
  * Hole pars/stroke-indexes are clearly-marked PLACEHOLDERS — Trice verifies
  * against real scorecards in Admin.
@@ -121,7 +122,7 @@ const SCRAMBLE = [
   ['2:52 PM', 'Fazio', 'Red'], ['3:01 PM', 'Fazio', 'Teal'],
   ['3:10 PM', 'Fazio', 'Purple'], ['3:19 PM', 'Fazio', 'Coral'],
 ];
-const SCRAMBLE_SCALES = { Norman: [40, 30, 25, 20, 15, 10], Fazio: [40, 30, 20, 10] };
+const SCRAMBLE_SCALES = { Norman: [6, 5, 4, 3, 2, 1], Fazio: [5, 4, 3, 2] };
 
 const PRIZES = {
   first: 4000, second: 800,

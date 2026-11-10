@@ -133,6 +133,19 @@ router.get('/boards/weekend', auth.requireAuth, (req, res) => {
   res.json(LB.computeWeekendLowNet(t.id, tier));
 });
 
+// Raffle ticket board: per-player net/gross birdie, eagle, and albatross
+// counts plus ticket totals (best ball + singles only).
+router.get('/boards/tickets', auth.requireAuth, (req, res) => {
+  const t = currentTournament();
+  res.json(LB.computeTicketBoard(t.id));
+});
+
+// Tiebreaker board: team holes won/lost differential across all matches.
+router.get('/boards/tiebreaker', auth.requireAuth, (req, res) => {
+  const t = currentTournament();
+  res.json(LB.computeTiebreakerBoard(t.id));
+});
+
 // Per-nine Low Net boards: "Front 9 Low Net" / "Back 9 Low Net".
 // Individuals; each player's own net summed across that nine's matches
 // (front: M1+M4+M6, back: M2+M5+M7). Scramble excluded.
