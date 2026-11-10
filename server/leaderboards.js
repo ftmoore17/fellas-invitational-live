@@ -15,8 +15,10 @@
  *  - Team standings: tied on points → higher holes differential ranks
  *    higher (holes won − holes lost across every match, ALL 9 holes
  *    counting — even holes played after a match was decided).
- *  - Match Low Net boards: tied on net → higher Stableford ranks higher
- *    (pairs M1/2/4/5, individuals M6/7). Scramble (M3) has no Stableford;
+ *  - Match Low Net boards: tied on net → higher raffle-ticket total
+ *    ranks higher (pairs M1/2/4/5, individuals M6/7 — changed 2026-11-10;
+ *    the tickets come from the same matches the board covers). Scramble
+ *    (M3) has no tickets;
  *    ties there use the USGA scorecard playoff, same as the points prize.
  * Low Net cap (Trice, 2026-11-05): every Low Net figure below counts a
  * hole at no worse than net double bogey (see cappedNets / S.lowNetCap).
@@ -142,12 +144,23 @@ function evaluatePairing(pairing, match, course) {
   const mkSide = (side, teamId) => {
     const players = pp.filter(r => r.side === side).map(r => {
       const ch18 = playerCH(r, course);
-      const seg = S.playerSegmentScore(gross.get(r.id) || new Map(), meta, ch18, match.segment);
+      const gmap = gross.get(r.id) || new Map();
+      const seg = S.playerSegmentScore(gmap, meta, ch18, match.segment);
+      // Raffle tickets for this segment (powers the Low Net tiebreak).
+      let tk = 0;
+      if (meta) {
+        for (const h of holes) {
+          const g = gmap.get(h), n = seg.nets.get(h);
+          if (g == null || n == null) continue;
+          const t = ticketForHole(g, n, meta[h - 1].par);
+          if (t) tk += t.pts;
+        }
+      }
       return {
         id: r.id, name: r.name, tier: r.tier,
         strokes: seg.courseHcp,
         netTotal: seg.netTotal, grossTotal: seg.grossTotal,
-        sf: seg.stableford, thru: seg.holesPlayed,
+        sf: seg.stableford, thru: seg.holesPlayed, tk,
         nets: seg.nets,
       };
     });
@@ -179,6 +192,8 @@ function evaluatePairing(pairing, match, course) {
     status: mp.status, through: mp.through, final: mp.final,
     winner: mp.winner, leader: mp.leader, closedOut: mp.closedOut,
     mpA, mpB, sfA, sfB,
+    tkA: sideA.players.reduce((s, p) => s + p.tk, 0),
+    tkB: sideB.players.reduce((s, p) => s + p.tk, 0),
     // Tiebreaker holes: won/lost across all 9 holes (never locks).
     holesWonA: mp.holesWonA, holesWonB: mp.holesWonB,
     holesDiff: mp.holesWonA - mp.holesWonB,
@@ -261,18 +276,14 @@ function projectedScramblePoints(entries, scale) {
 
 /**
  * Scramble placement ladder (Trice, 2026-11-10): points by finishing
- * place, sized to the number of teams on the course. The full scale is
- * 6–1 for six teams; a smaller field takes the middle of the scale
- * (four teams → 5,4,3,2); a larger field extends it (seven → 7–1).
- * Supersedes the per-course points_scale stored in the DB.
+ * place, anchored at the top so BOTH courses pay equally — 1st place
+ * always pays 6, 2nd pays 5, and so on down, whatever the field size
+ * (six teams → 6,5,4,3,2,1; four teams → 6,5,4,3; seven → 6,…,1,0).
+ * Same finish, same points, on either course. Supersedes the per-course
+ * points_scale stored in the DB.
  */
 function scrambleLadder(fieldSize) {
-  const FULL = [6, 5, 4, 3, 2, 1];
-  if (fieldSize >= 6) {
-    return Array.from({ length: fieldSize }, (_, i) => fieldSize - i);
-  }
-  const start = Math.round((6 - fieldSize) / 2);
-  return FULL.slice(start, start + fieldSize);
+  return Array.from({ length: fieldSize }, (_, i) => Math.max(0, 6 - i));
 }
 
 /**
@@ -483,14 +494,14 @@ function computeMatchBoard(tournamentId, matchNo) {
             strokes: pl.strokes, net: pl.thru ? cap.net : null,
             toPar: pl.thru ? cap.toPar : null,
             capped: cap.capped,
-            thru: pl.thru, sf: pl.sf,
+            thru: pl.thru, tk: pl.tk,
             detail,
           });
         }
       }
     }
     rows.sort((a, b) => (a.net == null ? 999 : a.net) - (b.net == null ? 999 : b.net)
-      || b.sf - a.sf); // net tie → higher Stableford ranks higher
+      || b.tk - a.tk); // net tie → higher ticket total ranks higher
     return { matchNo, format: 'singles', nine: m.segment, nineLabel: nineLabel(m.segment), rows };
   }
 
@@ -538,13 +549,13 @@ function computeMatchBoard(tournamentId, matchNo) {
         players: side.players.map(pl => ({ id: pl.id, name: pl.name, strokes: pl.strokes })),
         net: thru ? net : null, toPar: thru ? toPar : null, thru,
         capped,
-        sf: side.players.reduce((s, pl) => s + pl.sf, 0),
+        tk: side.players.reduce((s, pl) => s + pl.tk, 0),
         detail,
       });
     }
   }
   rows.sort((a, b) => (a.net == null ? 999 : a.net) - (b.net == null ? 999 : b.net)
-    || b.sf - a.sf); // net tie → higher Stableford ranks higher
+    || b.tk - a.tk); // net tie → higher ticket total ranks higher
   return { matchNo, format: 'bestball', nine: m.segment, nineLabel: nineLabel(m.segment), rows };
 }
 
@@ -560,7 +571,7 @@ function nineLabel(segment) {
  */
 function playerMatchAggregate(playerId, match) {
   const player = db.prepare(`SELECT * FROM players WHERE id = ?`).get(playerId);
-  let gross = 0, net = 0, sf = 0, holes = 0, toPar = 0;
+  let gross = 0, net = 0, sf = 0, holes = 0, toPar = 0, tk = 0;
   // Low Net capped variants (net double bogey max per hole) alongside the
   // actuals — Low Net boards use these; everything else keeps actuals.
   let cappedNet = 0, cappedToPar = 0, capped = false;
@@ -582,11 +593,16 @@ function playerMatchAggregate(playerId, match) {
     gross += seg.grossTotal; net += seg.netTotal; sf += seg.stableford; holes += seg.holesPlayed;
     for (const [h, n] of seg.nets) {
       if (n != null) toPar += n - meta[h - 1].par;
+      const g = grossMap.get(h);
+      if (g != null && n != null) {
+        const t = ticketForHole(g, n, meta[h - 1].par);
+        if (t) tk += t.pts;
+      }
     }
     const cap = cappedNets(seg.nets, meta);
     cappedNet += cap.net; cappedToPar += cap.toPar; capped = capped || cap.capped;
   }
-  return { gross, net, sf, holes, toPar, cappedNet, cappedToPar, capped };
+  return { gross, net, sf, holes, toPar, tk, cappedNet, cappedToPar, capped };
 }
 
 /**
@@ -706,20 +722,20 @@ function scoreExportCSV(data) {
  * Individuals, each player's own net summed across that nine's matches
  * (front: M1+M4+M6; back: M2+M5+M7 — derived from match segments, so it
  * adapts if the format ever changes). Scramble excluded.
- * Net tie → higher Stableford ranks higher.
+ * Net tie → higher ticket total ranks higher.
  */
 function computeNineLowNet(tournamentId, nine) {
   const players = getPlayers(tournamentId);
   const matches = getMatches(tournamentId).filter(m => m.segment === nine && m.format !== 'scramble');
   const rows = players.map(pl => {
-    let grossTotal = 0, netTotal = 0, sfTotal = 0, holesPlayed = 0, capped = false;
+    let grossTotal = 0, netTotal = 0, tkTotal = 0, holesPlayed = 0, capped = false;
     const perMatch = {};
     for (const m of matches) {
       const agg = playerMatchAggregate(pl.id, m);
-      if (agg.holes) perMatch[m.match_no] = { net: agg.cappedNet, thru: agg.holes, sf: agg.sf };
+      if (agg.holes) perMatch[m.match_no] = { net: agg.cappedNet, thru: agg.holes, tk: agg.tk };
       // Low Net board: the net total is the capped figure (net double
-      // bogey max per hole). Gross and Stableford stay actual.
-      grossTotal += agg.gross; netTotal += agg.cappedNet; sfTotal += agg.sf; holesPlayed += agg.holes;
+      // bogey max per hole). Gross stays actual.
+      grossTotal += agg.gross; netTotal += agg.cappedNet; tkTotal += agg.tk; holesPlayed += agg.holes;
       capped = capped || agg.capped;
     }
     return {
@@ -728,12 +744,12 @@ function computeNineLowNet(tournamentId, nine) {
       grossTotal: holesPlayed ? grossTotal : null,
       netTotal: holesPlayed ? netTotal : null,
       capped,
-      sfTotal, thru: holesPlayed,
+      tkTotal, thru: holesPlayed,
       perMatch,
     };
   });
   rows.sort((a, b) => (a.netTotal == null ? 9999 : a.netTotal) - (b.netTotal == null ? 9999 : b.netTotal)
-    || b.sfTotal - a.sfTotal);
+    || b.tkTotal - a.tkTotal); // net tie → higher ticket total ranks higher
   return {
     nine, label: nine === 'front' ? 'Front 9 Low Net' : 'Back 9 Low Net',
     matches: matches.map(m => m.match_no),
@@ -816,7 +832,7 @@ function playerCourseAggregates(playerId) {
  * Weekend low-net individuals: each player's OWN net across M1,2,4,5,6,7
  * (scramble excluded). tier = 'A'|'B'|'C'|'D'|null (all).
  * Sorted by TO PAR ascending (most under par first) — Trice, 2026-10-13.
- * To-par tie → higher Stableford ranks higher.
+ * To-par tie → higher ticket total ranks higher.
  */
 function computeWeekendLowNet(tournamentId, tier = null) {
   const players = getPlayers(tournamentId).filter(p => !tier || p.tier === tier);
@@ -824,14 +840,14 @@ function computeWeekendLowNet(tournamentId, tier = null) {
   const rows = [];
 
   for (const pl of players) {
-    let grossTotal = 0, netTotal = 0, sfTotal = 0, toParTotal = 0, holesPlayed = 0, capped = false;
+    let grossTotal = 0, netTotal = 0, tkTotal = 0, toParTotal = 0, holesPlayed = 0, capped = false;
     for (const m of matches) {
       const agg = playerMatchAggregate(pl.id, m);
       grossTotal += agg.gross;
       // Low Net board: net / to-par are the capped figures (net double
-      // bogey max per hole). Gross and Stableford stay actual.
+      // bogey max per hole). Gross stays actual.
       netTotal += agg.cappedNet;
-      sfTotal += agg.sf;
+      tkTotal += agg.tk;
       toParTotal += agg.cappedToPar;
       holesPlayed += agg.holes;
       capped = capped || agg.capped;
@@ -843,14 +859,14 @@ function computeWeekendLowNet(tournamentId, tier = null) {
       netTotal: holesPlayed ? netTotal : null,
       toPar: holesPlayed ? toParTotal : null,
       capped,
-      sfTotal,
+      tkTotal,
       thru: holesPlayed,
       // Per-course breakdown for the expandable row.
       courses: playerCourseAggregates(pl.id),
     });
   }
   rows.sort((a, b) => (a.toPar == null ? 9999 : a.toPar) - (b.toPar == null ? 9999 : b.toPar)
-    || b.sfTotal - a.sfTotal);
+    || b.tkTotal - a.tkTotal); // to-par tie → higher ticket total ranks higher
   return { tier: tier || 'ALL', rows };
 }
 
