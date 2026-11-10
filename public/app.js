@@ -951,7 +951,7 @@ async function renderTicketsBoard() {
   try { data = await api('/api/boards/tickets'); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
   const rows = data.rows.filter(r => r.thru > 0);
-  let html = `<div class="card"><div class="boardtitle"><h2>Raffle Tickets</h2></div><div class="boardsubrow"><div class="sub">Birdies, eagles, and albatrosses earn tickets for the prize drawing.</div></div></div>`;
+  let html = `<div class="card"><div class="boardtitle"><h2>Raffle Tickets</h2></div><div class="boardsubrow"><div class="sub">Net birdie 1 · Gross birdie 2 · Net eagle 3 · Gross eagle 4 · Net albatross 6 · Each hole counts once, for its best score.</div></div></div>`;
   if (!rows.length) {
     html += `<div class="card center tiny">No scores yet.</div>`;
   } else {
@@ -973,8 +973,7 @@ async function renderTicketsBoard() {
           <td class="total">${r.tickets}</td>
         </tr>`).join('')}
       </tbody>
-    </table></div>
-    <div class="legend">NB = net birdie (1 ticket) · GB = gross birdie (2) · NE = net eagle (3) · GE = gross eagle (4) · NA = net albatross (6). Each hole counts once, for its best score. The scramble doesn't count.</div>`;
+    </table></div>`;
   }
   el.innerHTML = html;
 }
