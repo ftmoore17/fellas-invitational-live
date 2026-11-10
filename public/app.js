@@ -952,7 +952,7 @@ async function renderMatchBoard() {
   // ranked within each nine — flagged with an asterisk + footnote (Trice).
   const splitNote = n === 4 || n === 5;
   const prizeKey = data.format === 'scramble' ? 'scrambleLowNet' : data.format === 'singles' ? 'singlesLowNet' : 'matchLowNet';
-  let html = `<div class="card"><div class="boardtitle"><h2>${label}${splitNote ? ' *' : ''}</h2></div><div class="boardsubrow"><div class="sub">Live · tap a row for hole-by-hole</div>${prizeBadge(prizeKey)}</div></div>`;
+  let html = `<div class="card"><div class="boardtitle"><h2>${label}${splitNote ? ' *' : ''}</h2></div><div class="boardsubrow"><div class="sub">Live · Tap a row for hole-by-hole.</div>${prizeBadge(prizeKey)}</div></div>`;
   html += `<div class="boardhead"><span></span><span>${who}</span><span class="num">Thru</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     const name = data.format === 'scramble' ? r.color
