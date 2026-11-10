@@ -1221,7 +1221,7 @@ async function renderSchedule() {
   const playerName = state.me && state.me.player ? state.me.player.name : null;
   const firstName = playerName ? playerName.split(' ')[0] : null;
   const headerTitle = firstName ? `${firstName}'s Tee Times` : 'Tee Times';
-  html += `<div style="font-size:1.5em;font-weight:800;margin-bottom:8px;text-align:center">${esc(headerTitle)}</div>`;
+  html += `<div style="font-size:1.5em;font-weight:800;margin-bottom:2px;text-align:center">${esc(headerTitle)}</div>`;
   ['Friday', 'Saturday'].forEach(day => {
     const nums = [1, 2, 3, 4, 5, 6, 7].filter(n => matchDay(n) === day);
     html += `<div class="section-title" style="font-size:1.3em;font-weight:800;margin-top:16px;text-align:center">${day}</div>`;
