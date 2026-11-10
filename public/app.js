@@ -1165,13 +1165,14 @@ async function renderSchedule() {
       base = 'Dye'; // singles are on Dye; pairings get seeded Saturday PM
     }
     const course = base === 'TBD' ? 'TBD' : (nine ? `${base} ${nine}` : base);
-    // Players in the matchup.
+    // Players in the matchup, each name in its team's color.
     let players = '';
     if (p) {
       if (m.format === 'scramble') {
-        players = (p.players || []).map(x => esc(x.name)).join(', ');
+        const hex = teamHex(p.team && p.team.color);
+        players = (p.players || []).map(x => `<span style="color:${hex}">${esc(x.name)}</span>`).join(', ');
       } else if (p.sideA && p.sideB) {
-        const names = (s) => (s.players || []).map(x => esc(x.name)).join(' & ');
+        const names = (s) => (s.players || []).map(x => `<span style="color:${teamHex(s.color)}">${esc(x.name)}</span>`).join(' & ');
         players = `${names(p.sideA)} vs ${names(p.sideB)}`;
       }
     }
