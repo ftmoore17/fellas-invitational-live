@@ -1209,7 +1209,7 @@ async function renderSchedule() {
       lineTop = esc(p && p.teeTime ? p.teeTime : 'TBD');
     }
     const line = `${lineTop} · <span style="font-style:italic">${esc(course)}</span>`;
-    return `<div class="paircard" style="padding:14px 16px;text-align:center">
+    return `<div class="paircard" style="padding:14px 16px;text-align:center${n === 1 ? ';margin-bottom:6px' : ''}">
       <div style="font-weight:800;font-size:1.1em;text-decoration:underline">Match ${n}</div>
       <div style="margin-top:4px">${line}</div>
       ${players}
