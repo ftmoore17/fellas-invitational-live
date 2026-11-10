@@ -1196,9 +1196,9 @@ async function renderSchedule() {
         players = wrap(`<span style="font-weight:700">${esc(myName)}</span> vs TBD`, teamHex(myColor), null);
       }
     }
-    // Info lines, stacked: time (or "Following … 9") over the course.
-    // Both lines share the exact same style.
-    let lineTop, lineBottom = esc(course);
+    // Info line: time (or "Following … 9") and the course on one line —
+    // stacking made the cards too tall. Course is italic.
+    let lineTop;
     if ([2, 5].includes(n)) {
       // The back-nine match follows the front 9 (and vice versa for
       // groups that started on the back) — name the nine just played.
@@ -1208,10 +1208,10 @@ async function renderSchedule() {
     } else {
       lineTop = esc(p && p.teeTime ? p.teeTime : 'TBD');
     }
+    const line = `${lineTop} · <span style="font-style:italic">${esc(course)}</span>`;
     return `<div class="paircard" style="padding:14px 16px;text-align:center">
       <div style="font-weight:800;font-size:1.1em;text-decoration:underline">Match ${n}</div>
-      <div style="margin-top:4px">${lineTop}</div>
-      <div style="font-style:italic">${lineBottom}</div>
+      <div style="margin-top:4px">${line}</div>
       ${players}
     </div>`;
   };
