@@ -421,7 +421,7 @@ function matchPlaceholderCard(n) {
   });
   return `
     <div class="section-title">${label}</div>
-    <div class="sub" style="margin-bottom:12px">Pairings set after Match 5 · Seeded by standings</div>
+    <div class="sub" style="margin-bottom:12px">Pairings set after Match 5 · Seeded by standings.</div>
     ${cards.map(({ time, a, b }) => `
       <div class="paircard">
         <div class="phead"><span>${time}</span><span>${course}</span></div>
@@ -1056,7 +1056,7 @@ async function renderWeekendBoard() {
   let data;
   try { data = await api(`/api/boards/weekend${tier}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  let html = `<div class="card"><div class="boardtitle"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2></div><div class="boardsubrow"><div class="sub">Tap a player for per-course scoring</div>${prizeBadge(state.boards.tier === 'ALL' ? 'weekendLowNet' : 'tierLowNet')}</div></div>`;
+  let html = `<div class="card"><div class="boardtitle"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2></div><div class="boardsubrow"><div class="sub">Tap a player for per-course scoring.</div>${prizeBadge(state.boards.tier === 'ALL' ? 'weekendLowNet' : 'tierLowNet')}</div></div>`;
   html += `<div class="boardhead"><span></span><span>Player</span><span class="num">Thru</span><span class="num">Net</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     html += `<details class="boardrow" data-pid="${r.playerId}"${state.boards.weekendPlayer === r.playerId ? ' open' : ''}><summary><span class="rank">${i + 1}</span>`
@@ -1121,7 +1121,7 @@ async function renderNineBoard(nine) {
   try { data = await api(`/api/boards/nine/${nine}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
   const mlist = (data.matches || []).map(m => 'M' + m).join(' + ');
-  let html = `<div class="card"><h2>${esc(data.label)}</h2><div class="sub">Individual · ${esc(mlist)} · scramble excluded</div></div>`;
+  let html = `<div class="card"><h2>${esc(data.label)}</h2><div class="sub">Individual · ${esc(mlist)} · Scramble excluded.</div></div>`;
   html += `<table class="rows"><thead><tr><th></th><th>Player</th><th class="num">Thru</th><th class="num">Net</th></tr></thead><tbody>`;
   data.rows.forEach((r, i) => {
     html += `<tr><td class="rank">${i + 1}</td>
