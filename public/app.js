@@ -1211,7 +1211,7 @@ async function renderSchedule() {
     return `<div class="paircard" style="padding:14px 16px;text-align:center">
       <div style="font-weight:800;font-size:1.1em;text-decoration:underline">Match ${n}</div>
       <div style="margin-top:4px">${lineTop}</div>
-      <div>${lineBottom}</div>
+      <div style="font-style:italic">${lineBottom}</div>
       ${players}
     </div>`;
   };
