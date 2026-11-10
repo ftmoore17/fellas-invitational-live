@@ -1167,8 +1167,9 @@ async function renderSchedule() {
     const course = base === 'TBD' ? 'TBD' : (nine ? `${base} ${nine}` : base);
     // Players in the matchup: plain names, bookended by one color bar
     // per team on the outside edges.
-    const bar = (hex) => `<span style="flex:0 0 4px;border-radius:2px;background:${hex}"></span>`;
-    const wrap = (inner, leftHex, rightHex) => `<div style="display:flex;align-items:stretch;gap:8px;margin-top:4px">${bar(leftHex)}<div>${inner}</div>${rightHex ? bar(rightHex) : ''}</div>`;
+    // Same pill as Match Center (.swatch: 10px wide, centered on the names).
+    const bar = (hex) => `<span class="swatch" style="background:${hex}"></span>`;
+    const wrap = (inner, leftHex, rightHex) => `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">${bar(leftHex)}<div>${inner}</div>${rightHex ? bar(rightHex) : ''}</div>`;
     let players = '';
     if (p) {
       if (m.format === 'scramble') {
