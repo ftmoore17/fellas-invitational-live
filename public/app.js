@@ -1165,20 +1165,18 @@ async function renderSchedule() {
       base = 'Dye'; // singles are on Dye; pairings get seeded Saturday PM
     }
     const course = base === 'TBD' ? 'TBD' : (nine ? `${base} ${nine}` : base);
-    // Players in the matchup, each name in its team's color.
+    // Players in the matchup: plain names, bookended by one color bar
+    // per team on the outside edges.
     let players = '';
     if (p) {
+      const bar = (hex) => `<span style="flex:0 0 4px;border-radius:2px;background:${hex}"></span>`;
+      const wrap = (inner, leftHex, rightHex) => `<div style="display:flex;align-items:stretch;gap:8px;margin-top:4px">${bar(leftHex)}<div>${inner}</div>${rightHex ? bar(rightHex) : ''}</div>`;
       if (m.format === 'scramble') {
-        const hex = teamHex(p.team && p.team.color);
-        const comma = `<span style="color:${hex};font-weight:700">,</span>`;
-        players = (p.players || []).map(x => `<span style="color:${hex};font-weight:700">${esc(x.name)}</span>`).join(`${comma} `);
+        const names = (p.players || []).map(x => esc(x.name)).join(', ');
+        players = wrap(`<span style="font-weight:700">${names}</span>`, teamHex(p.team && p.team.color), null);
       } else if (p.sideA && p.sideB) {
-        const names = (s) => {
-          const hex = teamHex(s.color);
-          const amp = `<span style="color:${hex};font-weight:700">&amp;</span>`;
-          return (s.players || []).map(x => `<span style="color:${hex};font-weight:700">${esc(x.name)}</span>`).join(` ${amp} `);
-        };
-        players = `${names(p.sideA)} vs ${names(p.sideB)}`;
+        const names = (s) => (s.players || []).map(x => esc(x.name)).join(' & ');
+        players = wrap(`<span style="font-weight:700">${names(p.sideA)}</span> vs <span style="font-weight:700">${names(p.sideB)}</span>`, teamHex(p.sideA.color), teamHex(p.sideB.color));
       }
     }
     // Info line: times and "Following" lines share the exact same style.
@@ -1195,7 +1193,7 @@ async function renderSchedule() {
     return `<div class="paircard" style="padding:14px 16px">
       <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
       <div style="margin-top:4px">${line}</div>
-      ${players ? `<div style="margin-top:2px">${players}</div>` : ''}
+      ${players}
     </div>`;
   };
 
