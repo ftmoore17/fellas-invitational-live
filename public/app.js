@@ -306,7 +306,6 @@ async function renderStandings() {
         <th style="text-align:left;padding-left:30px">Team</th>
         ${matchNos.map(n => `<th>M${n}</th>`).join('')}
         <th>Total</th>
-        <th>Holes</th>
       </tr></thead>
       <tbody>
       ${data.teams.map(t => `
@@ -321,14 +320,13 @@ async function renderStandings() {
             return `<td>${c.mp == null ? '' : c.mp}</td>`;
           }).join('')}
           <td class="total">${t.total}</td>
-          <td>${t.holesDiff > 0 ? '+' + t.holesDiff : t.holesDiff}</td>
         </tr>
         <tr class="teamdetail" data-team="${t.teamId}"${state.lbTeam === t.teamId ? '' : ' hidden'}>
-          <td colspan="10"><div class="teammembers">${(t.members || []).map(m => `<span class="tmember"><b>${esc(m.tier || '–')}</b> · ${esc(m.name)}</span>`).join('')}</div></td>
+          <td colspan="9"><div class="teammembers">${(t.members || []).map(m => `<span class="tmember"><b>${esc(m.tier || '–')}</b> · ${esc(m.name)}</span>`).join('')}</div></td>
         </tr>`).join('')}
       </tbody>
     </table></div>
-    <div class="legend">${proj ? 'Projected — every match scored as it stands right now<br>' : ''}Win = 2 pts · Tie = 1 pt · Holes = tiebreaker (holes won − lost, all 9 count)${prizeLegend()}</div>`;
+    <div class="legend">${proj ? 'Projected — every match scored as it stands right now<br>' : ''}Win = 2 pts · Tie = 1 pt${prizeLegend()}</div>`;
 
   $$('#lb-standings .lbmode .mpill').forEach(b => b.onclick = () => {
     if (state.lbMode === b.dataset.mode) return;
@@ -990,13 +988,12 @@ async function renderTiebreakerBoard() {
   html += `<div class="board-wrap"><table class="board">
     <thead><tr>
       <th style="text-align:left;padding-left:30px">Team</th>
-      <th>Pts</th><th>Won</th><th>Lost</th><th>+/-</th>
+      <th>Won</th><th>Lost</th><th>+/-</th>
     </tr></thead>
     <tbody>
     ${data.rows.map((r, i) => `
       <tr>
         <td class="teamcell"><span class="tname"><span class="place">${i + 1}</span><span style="color:${teamHex(r.color)};font-weight:700">${esc(r.color)}</span></span></td>
-        <td>${r.points}</td>
         <td>${r.holesWon}</td>
         <td>${r.holesLost}</td>
         <td class="total">${r.holesDiff > 0 ? '+' + r.holesDiff : r.holesDiff}</td>
