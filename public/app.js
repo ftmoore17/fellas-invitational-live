@@ -1224,7 +1224,7 @@ async function renderSchedule() {
   html += `<div style="font-size:1.5em;font-weight:800;margin-bottom:2px;text-align:center">${esc(headerTitle)}</div>`;
   ['Friday', 'Saturday'].forEach(day => {
     const nums = [1, 2, 3, 4, 5, 6, 7].filter(n => matchDay(n) === day);
-    html += `<div class="section-title" style="font-size:1.3em;font-weight:800;margin-top:16px;text-align:center">${day}</div>`;
+    html += `<div class="section-title" style="font-size:1.3em;font-weight:800;margin-top:${day === 'Friday' ? '7px' : '16px'};text-align:center">${day}</div>`;
     nums.forEach(n => { html += simpleCard(n); });
   });
   el.innerHTML = html || `<div class="card center tiny">No schedule yet.</div>`;
