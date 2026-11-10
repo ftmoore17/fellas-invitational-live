@@ -1169,7 +1169,7 @@ async function renderSchedule() {
     // per team on the outside edges.
     // Same pill as Match Center (.swatch: 10px wide, centered on the names).
     const bar = (hex) => `<span class="swatch" style="background:${hex}"></span>`;
-    const wrap = (inner, leftHex, rightHex) => `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">${bar(leftHex)}<div>${inner}</div>${rightHex ? bar(rightHex) : ''}</div>`;
+    const wrap = (inner, leftHex, rightHex) => `<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px">${bar(leftHex)}<div>${inner}</div>${rightHex ? bar(rightHex) : ''}</div>`;
     let players = '';
     if (p) {
       if (m.format === 'scramble') {
@@ -1207,7 +1207,7 @@ async function renderSchedule() {
     } else {
       line = `${esc(p && p.teeTime ? p.teeTime : 'TBD')} · ${esc(course)}`;
     }
-    return `<div class="paircard" style="padding:14px 16px">
+    return `<div class="paircard" style="padding:14px 16px;text-align:center">
       <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
       <div style="margin-top:4px">${line}</div>
       ${players}
@@ -1219,10 +1219,10 @@ async function renderSchedule() {
   const playerName = state.me && state.me.player ? state.me.player.name : null;
   const firstName = playerName ? playerName.split(' ')[0] : null;
   const headerTitle = firstName ? `${firstName}'s Tee Times` : 'Tee Times';
-  html += `<div style="font-size:1.5em;font-weight:800;margin-bottom:8px">${esc(headerTitle)}</div>`;
+  html += `<div style="font-size:1.5em;font-weight:800;margin-bottom:8px;text-align:center">${esc(headerTitle)}</div>`;
   ['Friday', 'Saturday'].forEach(day => {
     const nums = [1, 2, 3, 4, 5, 6, 7].filter(n => matchDay(n) === day);
-    html += `<div class="section-title" style="font-size:1.3em;font-weight:800;margin-top:16px">${day}</div>`;
+    html += `<div class="section-title" style="font-size:1.3em;font-weight:800;margin-top:16px;text-align:center">${day}</div>`;
     nums.forEach(n => { html += simpleCard(n); });
   });
   el.innerHTML = html || `<div class="card center tiny">No schedule yet.</div>`;
