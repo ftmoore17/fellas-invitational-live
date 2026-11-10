@@ -876,7 +876,7 @@ function computeWeekendLowNet(tournamentId, tier = null) {
  * Raffle ticket board (Trice, 2026-11-10): the individual birdie / eagle /
  * albatross pot that replaced Stableford. Each hole a player scores in a
  * best-ball or singles match pays its BEST achievement only:
- *   net albatross (or better) = 6 · gross eagle (or better) = 4
+ *   net albatross (or better) = 6 · gross eagle (or better) = 5
  *   net eagle = 3 · gross birdie = 2 · net birdie = 1
  * Scramble is excluded — no individual scores there. Counts are the
  * player's own ball in best ball (not the pair's best ball).
@@ -884,7 +884,7 @@ function computeWeekendLowNet(tournamentId, tier = null) {
 function ticketForHole(gross, net, par) {
   const gU = par - gross, nU = par - net;
   if (nU >= 3) return { key: 'netAlbatrosses', pts: 6 };
-  if (gU >= 2) return { key: 'grossEagles', pts: 4 };
+  if (gU >= 2) return { key: 'grossEagles', pts: 5 };
   if (nU === 2) return { key: 'netEagles', pts: 3 };
   if (gU === 1) return { key: 'grossBirdies', pts: 2 };
   if (nU === 1) return { key: 'netBirdies', pts: 1 };

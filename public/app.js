@@ -951,7 +951,7 @@ async function renderTicketsBoard() {
   try { data = await api('/api/boards/tickets'); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
   const rows = data.rows.filter(r => r.thru > 0);
-  let html = `<div class="card"><div class="boardtitle"><h2>Raffle Tickets</h2></div><div class="boardsubrow"><div class="sub">Net birdie 1 · Gross birdie 2 · Net eagle 3 · Gross eagle 4 · Net albatross 6 · Each hole counts once, for its best score.</div></div></div>`;
+  let html = `<div class="card"><div class="boardtitle"><h2>Raffle Tickets</h2></div><div class="boardsubrow"><div class="sub">Net birdie 1 · Gross birdie 2 · Net eagle 3 · Gross eagle 5 · Net albatross 6 · Each hole counts once, for its best score.</div></div></div>`;
   if (!rows.length) {
     html += `<div class="card center tiny">No scores yet.</div>`;
   } else {
