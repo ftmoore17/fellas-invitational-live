@@ -1167,16 +1167,32 @@ async function renderSchedule() {
     const course = base === 'TBD' ? 'TBD' : (nine ? `${base} ${nine}` : base);
     // Players in the matchup: plain names, bookended by one color bar
     // per team on the outside edges.
+    const bar = (hex) => `<span style="flex:0 0 4px;border-radius:2px;background:${hex}"></span>`;
+    const wrap = (inner, leftHex, rightHex) => `<div style="display:flex;align-items:stretch;gap:8px;margin-top:4px">${bar(leftHex)}<div>${inner}</div>${rightHex ? bar(rightHex) : ''}</div>`;
     let players = '';
     if (p) {
-      const bar = (hex) => `<span style="flex:0 0 4px;border-radius:2px;background:${hex}"></span>`;
-      const wrap = (inner, leftHex, rightHex) => `<div style="display:flex;align-items:stretch;gap:8px;margin-top:4px">${bar(leftHex)}<div>${inner}</div>${rightHex ? bar(rightHex) : ''}</div>`;
       if (m.format === 'scramble') {
         const names = (p.players || []).map(x => esc(x.name)).join(', ');
         players = wrap(`<span style="font-weight:700">${names}</span>`, teamHex(p.team && p.team.color), null);
       } else if (p.sideA && p.sideB) {
         const names = (s) => (s.players || []).map(x => esc(x.name)).join(' & ');
         players = wrap(`<span style="font-weight:700">${names(p.sideA)}</span> vs <span style="font-weight:700">${names(p.sideB)}</span>`, teamHex(p.sideA.color), teamHex(p.sideB.color));
+      }
+    }
+    // Singles (M6/M7) before pairings are seeded: show the player's own
+    // name vs TBD so the card reads as a singles match awaiting an opponent.
+    if (!players && n >= 6 && isPlayer) {
+      const myName = state.me && state.me.player ? state.me.player.name : null;
+      if (myName) {
+        let myColor = null;
+        for (const mm of matches) {
+          const op = (mm.pairings || []).find(x => x.own);
+          if (!op) continue;
+          if (mm.format === 'scramble') myColor = op.team && op.team.color;
+          else if (op.sideA && op.sideB) myColor = (op.sideA.players || []).some(x => x.own) ? op.sideA.color : op.sideB.color;
+          if (myColor) break;
+        }
+        players = wrap(`<span style="font-weight:700">${esc(myName)}</span> vs TBD`, teamHex(myColor), null);
       }
     }
     // Info line: times and "Following" lines share the exact same style.
