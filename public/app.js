@@ -1147,30 +1147,49 @@ async function renderSchedule() {
   const byNo = {};
   matches.forEach(m => { byNo[m.matchNo] = m; });
 
-  // Simple card: Match #, tee time, course. Equal sizes, clean.
+  // Simple card: Match #, tee time (or "Following … 9"), course with its
+  // Front/Back where applicable, and the players in the matchup. One
+  // consistent font for every line under the match title.
+  const segNine = (seg) => seg === 'front' ? 'Front' : seg === 'back' ? 'Back' : null;
   const simpleCard = (n) => {
     const m = byNo[n];
     if (!m) return `<div class="paircard"><div style="font-weight:800">Match ${n}</div><div class="tiny">TBD</div></div>`;
-    let teeTime = 'TBD', course = 'TBD';
-    if (isPlayer) {
-      const p = (m.pairings || []).find(p => p.own);
-      if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseLabel || 'TBD'; }
-      else if (n >= 6) { teeTime = 'TBD'; course = 'TBD'; }
-    } else {
-      // For spectators/admin: show first pairing as representative, or TBD
-      const p = (m.pairings || [])[0];
-      if (p) { teeTime = p.teeTime || 'TBD'; course = p.courseLabel || 'TBD'; }
+    // Representative pairing: the player's own, else the first.
+    const p = isPlayer ? (m.pairings || []).find(x => x.own) : (m.pairings || [])[0];
+    let base = 'TBD';
+    let nine = segNine(m.segment);
+    if (p) {
+      base = p.courseLabel || 'TBD';
+      if (p.courseNine) nine = p.courseNine;
+    } else if (n >= 6) {
+      base = 'Dye'; // singles are on Dye; pairings get seeded Saturday PM
     }
-    // M2/M5/M7: show "Following front 9" instead of TBD time.
-    if ([2, 5, 7].includes(n)) {
-      return `<div class="paircard" style="padding:14px 16px">
-        <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
-        <div style="margin-top:4px;color:var(--muted)">Following front 9</div>
-      </div>`;
+    const course = base === 'TBD' ? 'TBD' : (nine ? `${base} ${nine}` : base);
+    // Players in the matchup.
+    let players = '';
+    if (p) {
+      if (m.format === 'scramble') {
+        players = (p.players || []).map(x => esc(x.name)).join(', ');
+      } else if (p.sideA && p.sideB) {
+        const names = (s) => (s.players || []).map(x => esc(x.name)).join(' & ');
+        players = `${names(p.sideA)} vs ${names(p.sideB)}`;
+      }
+    }
+    // Info line: times and "Following" lines share the exact same style.
+    let line;
+    if ([2, 5].includes(n)) {
+      // The back-nine match follows the front 9 (and vice versa for
+      // groups that started on the back) — name the nine just played.
+      line = `Following ${nine === 'Back' ? 'Front' : 'Back'} 9 · ${esc(course)}`;
+    } else if (n === 7 && p && !p.teeTime) {
+      line = `Following Front 9 · ${esc(course)}`;
+    } else {
+      line = `${esc(p && p.teeTime ? p.teeTime : 'TBD')} · ${esc(course)}`;
     }
     return `<div class="paircard" style="padding:14px 16px">
       <div style="font-weight:800;font-size:1.1em">Match ${n}</div>
-      <div style="margin-top:4px">${esc(teeTime)} · ${esc(course)}</div>
+      <div style="margin-top:4px">${line}</div>
+      ${players ? `<div style="margin-top:2px">${players}</div>` : ''}
     </div>`;
   };
 

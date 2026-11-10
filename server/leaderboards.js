@@ -838,6 +838,10 @@ function getSchedule(tournamentId, playerId = null) {
   return matches.map(m => {
     const pairings = getPairings(m.id).map(p => {
       const course = getCourse(p.course_id);
+      // Which nine this pairing plays in this match, from the stored
+      // course label ("Fazio Back" → "Back"); null when unlabeled.
+      const nineMatch = /(Front|Back)\s*$/.exec(String(p.course_label || ''));
+      const courseNine = nineMatch ? nineMatch[1] : null;
       const pps = getPairingPlayers(p.id);
       const mkSide = (side) => ({
         teamId: side === 'A' ? p.side_a_team_id : p.side_b_team_id,
@@ -855,6 +859,7 @@ function getSchedule(tournamentId, playerId = null) {
       if (m.format === 'scramble') {
         return {
           id: p.id, teeTime: p.tee_time, courseLabel: course ? course.name : displayCourseName(p.course_label),
+          courseNine,
           unitType: 'team',
           team: { teamId: p.side_a_team_id, color: teams.get(p.side_a_team_id) },
           players: pps.map(r => ({ id: r.id, name: r.name, own: playerId != null && r.id === playerId })),
@@ -864,6 +869,7 @@ function getSchedule(tournamentId, playerId = null) {
       return {
         id: p.id, teeTime: p.tee_time,
         courseLabel: displayCourseName(p.course_label) || (course ? course.name : null),
+        courseNine,
         unitType: p.unit_type,
         sideA: mkSide('A'), sideB: mkSide('B'),
         own,
