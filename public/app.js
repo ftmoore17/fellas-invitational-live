@@ -1172,7 +1172,11 @@ async function renderSchedule() {
         const hex = teamHex(p.team && p.team.color);
         players = (p.players || []).map(x => `<span style="color:${hex};font-weight:700">${esc(x.name)}</span>`).join(', ');
       } else if (p.sideA && p.sideB) {
-        const names = (s) => (s.players || []).map(x => `<span style="color:${teamHex(s.color)};font-weight:700">${esc(x.name)}</span>`).join(' & ');
+        const names = (s) => {
+          const hex = teamHex(s.color);
+          const amp = `<span style="color:${hex};font-weight:700">&amp;</span>`;
+          return (s.players || []).map(x => `<span style="color:${hex};font-weight:700">${esc(x.name)}</span>`).join(` ${amp} `);
+        };
         players = `${names(p.sideA)} vs ${names(p.sideB)}`;
       }
     }
