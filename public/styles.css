@@ -435,6 +435,16 @@ details.boardrow summary .bname { display: flex; align-items: center; gap: 8px; 
 details.boardrow summary .bname .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 details.boardrow summary .num { text-align: right; }
 details.boardrow .body { padding: 2px 14px 14px; }
+/* Static board rows (Tiebreaker, Raffle Tickets) — same look as the Low Net boards, nothing to expand */
+div.boardrow { background: #fff; border-radius: 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(10,25,50,.06); }
+div.boardrow .brow { display: grid; grid-template-columns: 26px 1fr 40px 46px 62px; gap: 6px; align-items: center; padding: 12px 14px; font-size: 13.5px; }
+div.boardrow .brow .rank { color: var(--muted); font-weight: 700; }
+div.boardrow .brow .bname { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 600; }
+div.boardrow .brow .bname .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+div.boardrow .brow .num { text-align: right; }
+.num.strong { font-weight: 800; }
+/* Raffle Tickets: six narrow number columns */
+.boardhead.tk, div.boardrow .brow.tk { grid-template-columns: 26px 1fr 30px 30px 30px 30px 30px 46px; }
 .dsub { font-size: 11.5px; color: var(--muted); margin: 2px 0 6px; }
 .dplayer { font-weight: 700; font-size: 13px; margin: 8px 0 2px; }
 .dplayer:first-child { margin-top: 2px; }

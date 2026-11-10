@@ -955,25 +955,17 @@ async function renderTicketsBoard() {
   if (!rows.length) {
     html += `<div class="card center tiny">No scores yet.</div>`;
   } else {
-    html += `<div class="board-wrap"><table class="board">
-      <thead><tr>
-        <th style="text-align:left;padding-left:30px">Player</th>
-        <th>NB</th><th>GB</th><th>NE</th><th>GE</th><th>NA</th>
-        <th>Tickets</th>
-      </tr></thead>
-      <tbody>
-      ${rows.map((r, i) => `
-        <tr>
-          <td class="teamcell"><span class="tname"><span class="place">${i + 1}</span><span class="swatch" style="background:${teamHex(r.color)}"></span><span style="font-weight:700">${esc(r.name)}</span></span></td>
-          <td>${r.netBirdies || ''}</td>
-          <td>${r.grossBirdies || ''}</td>
-          <td>${r.netEagles || ''}</td>
-          <td>${r.grossEagles || ''}</td>
-          <td>${r.netAlbatrosses || ''}</td>
-          <td class="total">${r.tickets}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table></div>`;
+    html += `<div class="boardhead tk"><span></span><span>Player</span><span class="num">NB</span><span class="num">GB</span><span class="num">NE</span><span class="num">GE</span><span class="num">NA</span><span class="num">Tickets</span></div>`;
+    rows.forEach((r, i) => {
+      html += `<div class="boardrow"><div class="brow tk"><span class="rank">${i + 1}</span>`
+        + `<span class="bname"><span class="swatch" style="background:${teamHex(r.color)}"></span><span class="t">${esc(r.name)}</span></span>`
+        + `<span class="num">${r.netBirdies || ''}</span>`
+        + `<span class="num">${r.grossBirdies || ''}</span>`
+        + `<span class="num">${r.netEagles || ''}</span>`
+        + `<span class="num">${r.grossEagles || ''}</span>`
+        + `<span class="num">${r.netAlbatrosses || ''}</span>`
+        + `<span class="num strong">${r.tickets}</span></div></div>`;
+    });
   }
   el.innerHTML = html;
 }
@@ -984,22 +976,14 @@ async function renderTiebreakerBoard() {
   try { data = await api('/api/boards/tiebreaker'); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
   let html = `<div class="card"><div class="boardtitle"><h2>Tiebreaker · Holes Won / Lost</h2></div><div class="boardsubrow"><div class="sub">Standings ties break on holes won minus holes lost.</div></div></div>`;
-  html += `<div class="board-wrap"><table class="board">
-    <thead><tr>
-      <th style="text-align:left;padding-left:30px">Team</th>
-      <th>Won</th><th>Lost</th><th>+/-</th>
-    </tr></thead>
-    <tbody>
-    ${data.rows.map((r, i) => `
-      <tr>
-        <td class="teamcell"><span class="tname"><span class="place">${i + 1}</span><span style="color:${teamHex(r.color)};font-weight:700">${esc(r.color)}</span></span></td>
-        <td>${r.holesWon}</td>
-        <td>${r.holesLost}</td>
-        <td class="total">${r.holesDiff > 0 ? '+' + r.holesDiff : r.holesDiff}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table></div>
-  <div class="legend">All 9 holes of every match count, even after the match is decided.</div>`;
+  html += `<div class="boardhead"><span></span><span>Team</span><span class="num">Won</span><span class="num">Lost</span><span class="num">+/-</span></div>`;
+  data.rows.forEach((r, i) => {
+    html += `<div class="boardrow"><div class="brow"><span class="rank">${i + 1}</span>`
+      + `<span class="bname"><span class="swatch" style="background:${teamHex(r.color)}"></span><span class="t">${esc(r.color)}</span></span>`
+      + `<span class="num">${r.holesWon}</span>`
+      + `<span class="num">${r.holesLost}</span>`
+      + `<span class="num strong">${r.holesDiff > 0 ? '+' + r.holesDiff : r.holesDiff}</span></div></div>`;
+  });
   el.innerHTML = html;
 }
 
