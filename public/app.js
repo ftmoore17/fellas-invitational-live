@@ -1170,9 +1170,9 @@ async function renderSchedule() {
     if (p) {
       if (m.format === 'scramble') {
         const hex = teamHex(p.team && p.team.color);
-        players = (p.players || []).map(x => `<span style="color:${hex}">${esc(x.name)}</span>`).join(', ');
+        players = (p.players || []).map(x => `<span style="color:${hex};font-weight:700">${esc(x.name)}</span>`).join(', ');
       } else if (p.sideA && p.sideB) {
-        const names = (s) => (s.players || []).map(x => `<span style="color:${teamHex(s.color)}">${esc(x.name)}</span>`).join(' & ');
+        const names = (s) => (s.players || []).map(x => `<span style="color:${teamHex(s.color)};font-weight:700">${esc(x.name)}</span>`).join(' & ');
         players = `${names(p.sideA)} vs ${names(p.sideB)}`;
       }
     }
