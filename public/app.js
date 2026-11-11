@@ -330,7 +330,7 @@ async function renderStandings() {
         </tr>`).join('')}
       </tbody>
     </table></div>
-    <div class="legend">${proj ? 'Projected — every match scored as it stands right now<br>' : ''}Win = 1 pt · Tie = 0.5 pt${prizeLegend()}</div>`;
+    <div class="legend">${proj ? 'Projected — Every match scored as it stands right now.<br>' : ''}Win = 1 pt · Tie = 0.5 pt${prizeLegend()}</div>`;
 
   $$('#lb-standings .lbmode .mpill').forEach(b => b.onclick = () => {
     if (state.lbMode === b.dataset.mode) return;
