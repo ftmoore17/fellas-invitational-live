@@ -1331,12 +1331,47 @@ async function renderAdmin() {
     return;
   }
   const a = state.admin;
-  const tabs = [['players', 'Players'], ['teams', 'Teams'], ['courses', 'Courses'], ['strokes', 'Strokes'], ['matches', 'Matches'], ['prizes', 'Prizes'], ['export', 'Score Export'], ['setup', 'Setup']];
+  const tabs = [['players', 'Players'], ['teams', 'Teams'], ['courses', 'Courses'], ['strokes', 'Strokes'], ['matches', 'Matches'], ['prizes', 'Prizes'], ['totals', 'Bid Totals'], ['export', 'Score Export'], ['setup', 'Setup']];
   el.innerHTML = `
     <div class="admin-nav">${tabs.map(([k, l]) => `<button class="admintab ${a.section === k ? 'active' : ''}" data-s="${k}">${l}</button>`).join('')}</div>
     <div id="admin-body"><div class="card center tiny">Loading…</div></div>`;
   $$('#tab-content .admintab').forEach(b => b.onclick = () => { state.admin.section = b.dataset.s; renderAdmin(); });
-  ({ players: adminPlayers, teams: adminTeams, courses: adminCourses, strokes: adminStrokes, matches: adminMatches, prizes: adminPrizes, export: adminExport, setup: adminSetup })[a.section]();
+  ({ players: adminPlayers, teams: adminTeams, courses: adminCourses, strokes: adminStrokes, matches: adminMatches, prizes: adminPrizes, totals: adminTotals, export: adminExport, setup: adminSetup })[a.section]();
+}
+
+async function adminTotals() {
+  const el = $('#admin-body');
+  let data;
+  try { data = await api('/api/admin/calcutta/bid-totals'); }
+  catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
+  const rows = data.rows || [];
+  el.innerHTML = `
+    <div class="card">
+      <h2>Bid Totals</h2>
+      <div class="sub">What each person owes on Venmo, across every team they backed.</div>
+      ${rows.length === 0 ? `<div class="sub">No bids yet.</div>` : rows.map(r => `
+        <div class="cbid">
+          <div class="cbid-main"><b>${esc(r.name)}</b><span class="tiny">${r.bids} bid${r.bids === 1 ? '' : 's'}</span></div>
+          <div class="cbid-amt">${cMoney(r.total_cents)}</div>
+        </div>`).join('') + `
+        <div class="cbid" style="border-top:2px solid #d7dee9">
+          <div class="cbid-main"><b>Pool Total</b></div>
+          <div class="cbid-amt">${cMoney(data.pool_cents)}</div>
+        </div>`}
+      ${rows.length ? `<button class="btn secondary block" id="totals-csv" style="margin-top:12px">Export CSV</button>` : ''}
+    </div>`;
+  const btn = $('#totals-csv');
+  if (btn) btn.onclick = () => {
+    const lines = ['Name,Total Owed,Bids'];
+    rows.forEach(r => lines.push(`"${String(r.name).replace(/"/g, '""')}",${(r.total_cents / 100).toFixed(2)},${r.bids}`));
+    lines.push(`Pool Total,${(data.pool_cents / 100).toFixed(2)},`);
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'fellas-calcutta-bid-totals.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  };
 }
 
 async function adminPlayers() {

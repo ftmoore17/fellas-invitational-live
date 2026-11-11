@@ -155,6 +155,24 @@ router.delete('/calcutta/bids', (req, res) => {
   res.json({ ok: true, removed: r.changes });
 });
 
+// Per-person bid totals for Venmo reconciliation: every bidder (claimed
+// player or typed spectator name) with what they owe across all teams.
+router.get('/calcutta/bid-totals', (req, res) => {
+  const t = currentTournament();
+  const rows = db.prepare(`
+    SELECT COALESCE(p.name, b.bidder_name) AS name,
+           SUM(b.amount_cents) AS total_cents,
+           COUNT(*) AS bids
+    FROM calcutta_bids b
+    LEFT JOIN players p ON p.id = b.bidder_player_id
+    WHERE b.tournament_id = ?
+    GROUP BY COALESCE(p.name, b.bidder_name)
+    ORDER BY total_cents DESC, name ASC
+  `).all(t.id);
+  const pool = rows.reduce((sum, r) => sum + r.total_cents, 0);
+  res.json({ rows, pool_cents: pool });
+});
+
 // Payout split: % of the paid pool to 1st/2nd/3rd place teams. Must sum to 100.
 router.put('/calcutta/payouts', (req, res) => {
   const t = currentTournament();
