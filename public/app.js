@@ -115,12 +115,10 @@ function renderAuth() {
       <p class="sub">Live scores, standings, and brackets for the weekend. Pick how you're joining.</p>
       <button class="rolebtn" id="role-player"><b>⛳ I'm Playing</b><span>Claim your name with your PIN to enter scores.</span></button>
       <button class="rolebtn" id="role-spectator"><b>👀 Spectator</b><span>Follow along live with the spectator code.</span></button>
-      <button class="rolebtn" id="role-admin"><b>⚙ Tournament Admin</b><span>Directors only — full control.</span></button>
       <div id="auth-form"></div>
     </div>`;
   $('#role-player').onclick = renderPlayerClaim;
   $('#role-spectator').onclick = renderSpectatorForm;
-  $('#role-admin').onclick = renderAdminLogin;
 }
 
 async function renderPlayerClaim() {
@@ -216,6 +214,10 @@ function showMain() {
   else if (me.role === 'spectator') label = 'Spectator';
   chip.innerHTML = `<span class="chipname">${label}</span><button id="logout">Log out</button>`;
   $('#logout').onclick = async () => { await api('/api/auth/logout', { method: 'POST' }); location.reload(); };
+  // Admin lives only on the director's account (Trice): everyone else's
+  // tab bar is the five tabs, spread evenly by the bar's flex layout.
+  const adminBtn = $('#tab-bar [data-tab="admin"]');
+  if (adminBtn) adminBtn.style.display = me.canAdmin ? '' : 'none';
   switchTab('leaderboard');
 }
 
@@ -244,6 +246,7 @@ if (window.visualViewport) window.visualViewport.addEventListener('resize', sync
 window.addEventListener('orientationchange', () => setTimeout(syncVisibleHeight, 60));
 
 function switchTab(tab) {
+  if (tab === 'admin' && state.me && !state.me.canAdmin) tab = 'leaderboard';
   state.tab = tab;
   // Scoring tab is scroll-locked (see body.scoring-lock in styles.css):
   // the class pins the page to the viewport while Scoring is active and
@@ -1309,7 +1312,7 @@ function schedPairCard(m, p, highlight) {
 
 async function renderAdmin() {
   const el = $('#tab-content');
-  if (state.me.role !== 'admin') {
+  if (!state.me.canAdmin) {
     el.innerHTML = `
       <div class="card"><h2>Admin Login</h2>
         <div class="sub">Tournament directors only.</div>
@@ -1592,7 +1595,7 @@ const cMoney = c => '$' + (c / 100).toLocaleString('en-US', { maximumFractionDig
 async function renderCalcutta() {
   const el = $('#tab-content');
   el.innerHTML = `<div class="card center tiny">Loading Calcutta…</div>`;
-  const isAdmin = state.me.role === 'admin';
+  const isAdmin = !!state.me.canAdmin;
   const isPlayer = state.me.role === 'player';
   const isSpectator = state.me.role === 'spectator';
   const specName = isSpectator ? (localStorage.getItem('fellas_spec_name') || '').trim() : '';

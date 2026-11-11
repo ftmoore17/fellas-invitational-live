@@ -73,9 +73,24 @@ function requireAuth(req, res, next) {
   next();
 }
 
+/**
+ * Admin access: the admin login, OR the director's own claimed player
+ * account (Trice, 2026-11-11: "hide admin for everyone except my account
+ * Trice"). His claim PIN is his credential, same as for scoring.
+ */
+function isAdminSession(req) {
+  if (!req.session) return false;
+  if (req.session.role === 'admin') return true;
+  if (req.session.role === 'player' && req.session.player_id) {
+    const p = db.prepare(`SELECT name FROM players WHERE id = ?`).get(req.session.player_id);
+    if (p && (p.name || '').trim().split(/\s+/)[0].toLowerCase() === 'trice') return true;
+  }
+  return false;
+}
+
 /** Require admin role. */
 function requireAdmin(req, res, next) {
-  if (!req.session || req.session.role !== 'admin') {
+  if (!isAdminSession(req)) {
     return res.status(403).json({ error: 'Admin required' });
   }
   next();
@@ -102,6 +117,7 @@ async function verifyPassword(password, hash) {
 
 module.exports = {
   COOKIE_NAME,
+  isAdminSession,
   createSession,
   getSession,
   destroySession,

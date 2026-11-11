@@ -84,7 +84,7 @@ router.post('/auth/logout', (req, res) => {
 
 router.get('/me', (req, res) => {
   if (!req.session) return res.json({ role: null });
-  const out = { role: req.session.role };
+  const out = { role: req.session.role, canAdmin: auth.isAdminSession(req) };
   if (req.session.role === 'player') {
     out.player = db.prepare(`SELECT id, name, team_id FROM players WHERE id = ?`).get(req.session.player_id);
   }
@@ -357,7 +357,7 @@ router.post('/scores', auth.requireScorer, (req, res) => {
   if (match.locked) return res.status(403).json({ error: 'Match is locked' });
   // Per-match scoring activation (Trice, 2026-11-11): players can't enter
   // scores until the admin opens this match. Admin entry always works.
-  if (!match.scoring_open && req.session.role !== 'admin') {
+  if (!match.scoring_open && !auth.isAdminSession(req)) {
     return res.status(403).json({ error: 'Scoring for this match is not open yet' });
   }
 
