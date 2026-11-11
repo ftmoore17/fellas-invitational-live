@@ -396,7 +396,7 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
     }
   }
 
-  rows.sort((a, b) => b.total - a.total || b.holesDiff - a.holesDiff);
+  rows.sort((a, b) => b.total - a.total || b.holesDiff - a.holesDiff || b.holesWon - a.holesWon);
   const leader = rows.length ? rows[0].total : 0;
   rows.forEach((r, i) => {
     r.place = i + 1;

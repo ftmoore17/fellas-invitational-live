@@ -979,7 +979,7 @@ async function renderTiebreakerBoard() {
   let data;
   try { data = await api('/api/boards/tiebreaker'); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  let html = `<div class="card"><div class="boardtitle"><h2>Tiebreaker · Holes Won / Lost</h2></div><div class="boardsubrow"><div class="sub">Standings ties break on holes won minus holes lost.</div></div></div>`;
+  let html = `<div class="card"><div class="boardtitle"><h2>Tiebreaker · Holes Won / Lost</h2></div><div class="boardsubrow"><div class="sub">Standings ties break on holes won minus holes lost, then on most holes won.</div></div></div>`;
   html += `<div class="boardhead"><span></span><span>Team</span><span class="num">Won</span><span class="num">Lost</span><span class="num">+/-</span></div>`;
   data.rows.forEach((r, i) => {
     html += `<div class="boardrow"><div class="brow"><span class="rank">${i + 1}</span>`
