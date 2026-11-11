@@ -122,7 +122,7 @@ router.post('/calcutta/bids', (req, res) => {
     VALUES (?, ?, ?, ?, ?)
     ON CONFLICT (tournament_id, bidder_player_id, team_id)
     DO UPDATE SET amount_cents = excluded.amount_cents, paid = excluded.paid
-  `).run(t.id, player_id, team_id, cents, paid === false || paid === 0 ? 0 : 1);
+  `).run(t.id, player_id, team_id, cents, 1);
   res.json({ ok: true });
 });
 

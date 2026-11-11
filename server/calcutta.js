@@ -122,8 +122,8 @@ function normalizeBidderName(n) {
 
 /** A bidder bets on a team from the app. `who` is { playerId } or { name }
  *  (spectator). Adds to any existing bid on that team (one cell per bidder
- *  per team, like the spreadsheet). New money starts unpaid — admin flips
- *  it to paid after the Venmo comes through. */
+ *  per team, like the spreadsheet). Every bet counts as paid the moment
+ *  it's submitted — there is no paid/pending state (2026-11-11). */
 function placeBet(tournamentId, who, teamId, amountCents) {
   const team = db.prepare(`SELECT id FROM teams WHERE id = ? AND tournament_id = ?`).get(teamId, tournamentId);
   if (!team) return { error: 'Team not found' };
@@ -139,7 +139,7 @@ function placeBet(tournamentId, who, teamId, amountCents) {
     } else {
       db.prepare(
         `INSERT INTO calcutta_bids (tournament_id, bidder_player_id, team_id, amount_cents, paid)
-         VALUES (?, ?, ?, ?, 0)`
+         VALUES (?, ?, ?, ?, 1)`
       ).run(tournamentId, who.playerId, teamId, amountCents);
     }
     return { ok: true };
@@ -154,7 +154,7 @@ function placeBet(tournamentId, who, teamId, amountCents) {
   } else {
     db.prepare(
       `INSERT INTO calcutta_bids (tournament_id, bidder_player_id, bidder_name, team_id, amount_cents, paid)
-       VALUES (?, NULL, ?, ?, ?, 0)`
+       VALUES (?, NULL, ?, ?, ?, 1)`
     ).run(tournamentId, name, teamId, amountCents);
   }
   return { ok: true };

@@ -196,8 +196,8 @@ function spectatorBetAllowed(ip) {
 }
 
 // A claimed player — or a spectator with a typed name — bets on a team.
-// Adds to any existing bid on that team. Bets start unpaid; admin marks
-// paid after verifying Venmo.
+// Adds to any existing bid on that team. Every bet counts as paid the
+// moment it's submitted.
 router.post('/calcutta/bets', auth.requireAuth, (req, res) => {
   const t = currentTournament();
   const role = req.session && req.session.role;

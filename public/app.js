@@ -1552,8 +1552,8 @@ async function adminSetup() {
 }
 
 /* ============================== CALCUTTA ============================== */
-/* Thursday-night auction: bidders buy a % of each team. Admin verifies
-   Venmo before entering a bid (paid flag); share of team = bid / team total. */
+/* Thursday-night auction: bidders buy a % of each team. Every bet counts
+   as paid the moment it's submitted; share of team = bid / team total. */
 
 let calcuttaTeamId = null;
 let calcuttaLastBet = null; // {amount_cents, color} — shown with the Venmo prompt after betting
@@ -1588,7 +1588,7 @@ async function renderCalcutta() {
     <div class="card cpool">
       <div class="sub">Calcutta Pool</div>
       <div class="cpool-total">${cMoney(board.pool_cents)}</div>
-      <div class="tiny">${board.bid_count} bid${board.bid_count === 1 ? '' : 's'} · Paid ${cMoney(board.paid_cents)}${board.pending_cents > 0 ? ` · <span class="cpending">Pending ${cMoney(board.pending_cents)}</span>` : ''}</div>
+      <div class="tiny">${board.bid_count} bid${board.bid_count === 1 ? '' : 's'}</div>
     </div>`;
 
   if (calcuttaLastBet) {
@@ -1598,16 +1598,14 @@ async function renderCalcutta() {
     <div class="card cconfirm">
       <h2>Bet placed ✓</h2>
       <div class="sub">${cMoney(lb.amount_cents)} on <b>${esc(lb.color)}</b>.</div>
-      ${lb.unpaid_cents > 0 ? `
-        <div class="cpool-total" style="font-size:26px;margin-top:6px">${cMoney(lb.unpaid_cents)}</div>
-        <div class="sub">Total to send on Venmo</div>
-        ${vuser
-          ? `<a class="btn primary block cvenmo" id="cvenmo-pay" href="https://venmo.com/u/${encodeURIComponent(vuser)}"
-               data-deep="venmo://paycharge?txn=pay&recipients=${encodeURIComponent(vuser)}&amount=${(lb.unpaid_cents / 100).toFixed(2)}&note=${encodeURIComponent('Fellas Calcutta')}"
-               data-web="https://venmo.com/u/${encodeURIComponent(vuser)}" target="_blank" rel="noopener">Pay ${cMoney(lb.unpaid_cents)} to @${esc(vuser)} on Venmo</a>
-             <div class="tiny" style="margin-top:6px">Opens your Venmo app with the amount filled in — put “Fellas Calcutta” in the note.</div>`
-          : `<div class="sub">Send ${cMoney(lb.unpaid_cents)} to Trice on Venmo with the note “Fellas Calcutta”.</div>`}
-      ` : `<div class="sub">You're all paid up ✓</div>`}
+      <div class="cpool-total" style="font-size:26px;margin-top:6px">${cMoney(lb.amount_cents)}</div>
+      <div class="sub">Total to send on Venmo</div>
+      ${vuser
+        ? `<a class="btn primary block cvenmo" id="cvenmo-pay" href="https://venmo.com/u/${encodeURIComponent(vuser)}"
+             data-deep="venmo://paycharge?txn=pay&recipients=${encodeURIComponent(vuser)}&amount=${(lb.amount_cents / 100).toFixed(2)}&note=${encodeURIComponent('Fellas Calcutta')}"
+             data-web="https://venmo.com/u/${encodeURIComponent(vuser)}" target="_blank" rel="noopener">Pay ${cMoney(lb.amount_cents)} to @${esc(vuser)} on Venmo</a>
+           <div class="tiny" style="margin-top:6px">Opens your Venmo app with the amount filled in — put “Fellas Calcutta” in the note.</div>`
+        : `<div class="sub">Send ${cMoney(lb.amount_cents)} to Trice on Venmo with the note “Fellas Calcutta”.</div>`}
     </div>`;
     calcuttaLastBet = null;
   }
@@ -1622,7 +1620,7 @@ async function renderCalcutta() {
         : mine.length === 0 ? `<div class="sub">No bets yet — pick a team below.</div>` : mine.map(b => `
         <div class="cbid">
           <div class="cbid-main"><b><span class="cdot" style="background:${teamHex(b.color)}"></span>${esc(b.color)}</b><span class="tiny">${b.pct}% of team</span></div>
-          <div class="cbid-amt">${cMoney(b.amount_cents)} ${b.paid ? '<span class="cpaidmark">✓ paid</span>' : '<span class="cpending">pending</span>'}</div>
+          <div class="cbid-amt">${cMoney(b.amount_cents)}</div>
         </div>`).join('')}
     </div>`;
     if (board.open) {
@@ -1661,9 +1659,8 @@ async function renderCalcutta() {
           </div>
           ${isAdmin
             ? `<input class="camt" type="number" min="1" step="1" value="${b.amount_cents / 100}" data-bid="${b.id}" aria-label="Bid amount">
-               <button class="cpaid${b.paid ? ' on' : ''}" data-bid="${b.id}" title="Toggle paid">${b.paid ? '✓' : '⏳'}</button>
                <button class="cdel" data-bid="${b.id}" title="Delete bid">✕</button>`
-            : `<div class="cbid-amt">${cMoney(b.amount_cents)} ${b.paid ? '<span class="cpaidmark">✓</span>' : '<span class="cpending">pending</span>'}</div>`}
+            : `<div class="cbid-amt">${cMoney(b.amount_cents)}</div>`}
         </div>`).join('')}
     </div>`;
   }
@@ -1704,19 +1701,18 @@ async function renderCalcutta() {
     </div>
     <div class="card">
       <h2>Enter a bid</h2>
-      <div class="sub">Verify the bidder's Venmo <b>before</b> entering — leave Paid checked once you've confirmed it.</div>
+      <div class="sub">Every bid counts as paid as soon as it's entered.</div>
       <div class="cform">
         <label>Bidder<select id="cb-player">${players.map(p => `<option value="${p.id}">${esc(p.name)}${p.team_color ? ` (${esc(p.team_color)})` : ''}</option>`).join('')}</select></label>
         <label>Team<select id="cb-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)} — ${cMoney(t.total_cents)} in</option>`).join('')}</select></label>
         <label>Amount $<input id="cb-amount" type="number" min="1" step="1" placeholder="100"></label>
-        <label class="ccheck"><input id="cb-paid" type="checkbox" checked> Paid (Venmo verified)</label>
         <button class="btn primary block" id="cb-add">Add bid</button>
         <div class="err hidden" id="cb-err"></div>
       </div>
     </div>
     <div class="card">
       <h2>Payout split</h2>
-      <div class="sub">% of the paid pool to the 1st / 2nd / 3rd place teams. Must add up to 100%.</div>
+      <div class="sub">% of the pool to the 1st / 2nd / 3rd place teams. Must add up to 100%.</div>
       <div class="crow">
         <label>1st<input id="cp-1" type="number" min="0" max="100" value="${board.payouts[1]}"></label>
         <label>2nd<input id="cp-2" type="number" min="0" max="100" value="${board.payouts[2]}"></label>
@@ -1778,7 +1774,7 @@ async function renderCalcutta() {
       }
       try {
         const resp = await api('/api/calcutta/bets', { method: 'POST', body: JSON.stringify({ team_id: teamId, amount, bidder_name }) });
-        calcuttaLastBet = { amount_cents: Math.round(amount * 100), color: team ? team.color : '', unpaid_cents: resp.my_unpaid_cents || 0 };
+        calcuttaLastBet = { amount_cents: Math.round(amount * 100), color: team ? team.color : '' };
         renderCalcutta();
       } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
     };
@@ -1811,13 +1807,6 @@ async function renderCalcutta() {
         } catch (e) { inp.classList.add('cerr'); setTimeout(() => inp.classList.remove('cerr'), 1500); }
       };
     });
-    el.querySelectorAll('.cpaid').forEach(btn => {
-      btn.onclick = async () => {
-        const on = !btn.classList.contains('on');
-        await api(`/api/admin/calcutta/bids/${btn.dataset.bid}`, { method: 'PATCH', body: JSON.stringify({ paid: on }) });
-        renderCalcutta();
-      };
-    });
     el.querySelectorAll('.cdel').forEach(btn => {
       btn.onclick = async () => {
         if (!btn.dataset.armed) {
@@ -1836,7 +1825,6 @@ async function renderCalcutta() {
           player_id: Number($('#cb-player').value),
           team_id: Number($('#cb-team').value),
           amount: Number($('#cb-amount').value),
-          paid: $('#cb-paid').checked,
         }) });
         calcuttaTeamId = Number($('#cb-team').value);
         renderCalcutta();
