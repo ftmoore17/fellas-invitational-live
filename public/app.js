@@ -1784,9 +1784,9 @@ async function renderCalcutta() {
       if (!prev) return;
       if (team && amt > 0) {
         const pct = amt / (team.total_cents / 100 + amt) * 100;
-        prev.textContent = `${cMoney(amt * 100)} would be about ${pct.toFixed(1)}% of ${team.color} (${cMoney(team.total_cents)} in so far)`;
+        prev.textContent = `${cMoney(amt * 100)} would be about ${pct.toFixed(1)}% of ${team.color} (${cMoney(team.total_cents)} in So Far)`;
       } else if (team) {
-        prev.textContent = `${cMoney(team.total_cents)} bet on ${team.color} so far`;
+        prev.textContent = `${cMoney(team.total_cents)} on ${team.color} So Far`;
       } else {
         prev.textContent = '';
       }
