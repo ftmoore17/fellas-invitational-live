@@ -307,7 +307,7 @@ async function renderStandings() {
     </div>
     <div class="board-wrap"><table class="board">
       <thead><tr>
-        <th style="text-align:left;padding-left:30px">Team</th>
+        <th style="text-align:left;padding-left:40px">Team</th>
         ${matchNos.map(n => `<th>M${n}</th>`).join('')}
         <th>Total</th>
       </tr></thead>
@@ -315,7 +315,7 @@ async function renderStandings() {
       ${data.teams.map(t => `
         <tr>
           <td class="teamcell teamtoggle" data-team="${t.teamId}">
-            <span class="tname"><span class="place">${ordinal(t.place)}</span><span style="display:flex;flex-direction:column;line-height:1.25"><span style="color:${teamHex(t.color)};font-weight:700">${esc(t.color)}</span><span class="back" style="margin-left:0">${t.back === 0 ? 'Leader' : t.back + ' back'}</span></span></span>
+            <span class="tname"><span class="place">${ordinal(t.place)}</span><span style="display:flex;flex-direction:column;line-height:1.25"><span class="tcolor" style="color:${teamHex(t.color)};font-weight:700">${esc(t.color)}</span><span class="back" style="margin-left:0">${t.back === 0 ? 'Leader' : t.back + ' back'}</span></span></span>
           </td>
           ${matchNos.map(n => {
             const c = t.matches[n];
