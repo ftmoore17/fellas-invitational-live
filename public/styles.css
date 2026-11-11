@@ -232,6 +232,8 @@ table.rows td.num, table.rows th.num { text-align: right; }
 }
 .mpill.active { background: var(--navy-800); color: #fff; border-color: var(--navy-800); }
 .mpill.done { border-color: var(--green); }
+/* Calcutta team card header: name left, total right in line with the amounts. */
+.cteam-head { display: flex; justify-content: space-between; align-items: center; }
 /* Calcutta team picker: tidy two-across grid, every pill the same size. */
 .cteams-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .cteams-grid .mpill { width: 100%; margin: 0; }

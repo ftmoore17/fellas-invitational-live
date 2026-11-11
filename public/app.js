@@ -1701,7 +1701,7 @@ async function renderCalcutta() {
   if (team) {
     html += `
     <div class="card">
-      <h2><span class="cdot" style="background:${teamHex(team.color)}"></span> ${esc(team.color)} · ${cMoney(team.total_cents)} total</h2>
+      <h2 class="cteam-head"><span><span class="cdot" style="background:${teamHex(team.color)}"></span> ${esc(team.color)}</span><span>${cMoney(team.total_cents)} Total</span></h2>
       ${team.bids.length === 0 ? `<div class="sub">No bids yet.</div>` : team.bids.map(b => `
         <div class="cbid">
           <div class="cbid-main">
