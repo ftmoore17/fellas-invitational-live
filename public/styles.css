@@ -489,17 +489,18 @@ details.wcrow summary .num { text-align: right; }
 table.rows.mini { font-size: 12.5px; margin-top: 6px; }
 table.rows.mini td { padding: 8px 10px; }
 
-/* ---------- boards: header card title row + prize badge ---------- */
-/* The title owns its row across the full card width and never wraps;
-   the prize badge sits on the subtitle row below, right-aligned
-   (moved off the title row so long titles fit on one line). */
+/* ---------- boards: header card title row + prize amount ---------- */
+/* The title owns its row across the full card width and never wraps.
+   On boards with a prize, the card is a flex row: title + subtitle on
+   the left, the prize amount in gold at the right, vertically centered
+   against the whole header block. */
 .boardtitle h2 { margin: 0 0 4px; white-space: nowrap; }
 .boardsubrow { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
 .boardsubrow .sub { margin-bottom: 0; }
-.prizebadge {
-  flex: none; background: var(--gold-soft); color: #8a6d1c; border: 1px solid #e7d194;
-  font-weight: 800; font-size: 13.5px; border-radius: 999px; padding: 4px 11px; white-space: nowrap;
-}
+.prizehead { display: flex; align-items: center; gap: 12px; }
+.prizehead .ph-main { flex: 1; min-width: 0; }
+.prizehead .sub { margin-bottom: 0; }
+.prizetitle { flex: none; margin-left: auto; font-weight: 800; font-size: 22px; color: #A8842A; white-space: nowrap; }
 
 /* ---------- boards: taken-net highlight ---------- */
 .dchip span.taken { background: var(--navy-600); color: #fff; border-radius: 4px; padding: 1px 4px; font-weight: 800; }

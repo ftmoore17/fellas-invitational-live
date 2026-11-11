@@ -348,14 +348,15 @@ async function renderStandings() {
   });
 }
 
-/* Prize badge for a Boards header card ("💰 $200"), read live from
-   state.tournament.prizes (Admin → Prizes). No badge at all when the
-   value is null/empty/0 — never a "$0" pill. */
-function prizeBadge(key) {
+/* Prize amount for a Boards header card ("$200"), shown in gold at the
+   right of the card, vertically centered against the title + subtitle
+   block. Read live from state.tournament.prizes (Admin → Prizes).
+   Nothing at all when the value is null/empty/0. */
+function prizeTitle(key) {
   const p = state.tournament && state.tournament.prizes;
   const v = p && p[key];
   if (v == null || v === '' || !(Number(v) > 0)) return '';
-  return `<span class="prizebadge">💰 $${Number(v).toLocaleString()}</span>`;
+  return `<span class="prizetitle">$${Number(v).toLocaleString()}</span>`;
 }
 
 function prizeLegend() {
@@ -1005,7 +1006,7 @@ async function renderMatchBoard() {
   // ranked within each nine — flagged with an asterisk + footnote (Trice).
   const splitNote = n === 4 || n === 5;
   const prizeKey = data.format === 'scramble' ? 'scrambleLowNet' : data.format === 'singles' ? 'singlesLowNet' : 'matchLowNet';
-  let html = `<div class="card"><div class="boardtitle"><h2>${label}${splitNote ? ' *' : ''}</h2></div><div class="boardsubrow"><div class="sub">Live · Tap a row for hole-by-hole.</div>${prizeBadge(prizeKey)}</div></div>`;
+  let html = `<div class="card prizehead"><div class="ph-main"><div class="boardtitle"><h2>${label}${splitNote ? ' *' : ''}</h2></div><div class="sub">Live · Tap a row for hole-by-hole.</div></div>${prizeTitle(prizeKey)}</div>`;
   html += `<div class="boardhead"><span></span><span>${who}</span><span class="num">Thru</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     const name = data.format === 'scramble' ? r.color
@@ -1109,7 +1110,7 @@ async function renderWeekendBoard() {
   let data;
   try { data = await api(`/api/boards/weekend${tier}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  let html = `<div class="card"><div class="boardtitle"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2></div><div class="boardsubrow"><div class="sub">Tap a player for per-course scoring.</div>${prizeBadge(state.boards.tier === 'ALL' ? 'weekendLowNet' : 'tierLowNet')}</div></div>`;
+  let html = `<div class="card prizehead"><div class="ph-main"><div class="boardtitle"><h2>Weekend Low Net ${state.boards.tier === 'ALL' ? '' : '· Tier ' + esc(state.boards.tier)}</h2></div><div class="sub">Tap a player for per-course scoring.</div></div>${prizeTitle(state.boards.tier === 'ALL' ? 'weekendLowNet' : 'tierLowNet')}</div>`;
   html += `<div class="boardhead"><span></span><span>Player</span><span class="num">Thru</span><span class="num">Net</span><span class="num">To Par</span></div>`;
   data.rows.forEach((r, i) => {
     html += `<details class="boardrow" data-pid="${r.playerId}"${state.boards.weekendPlayer === r.playerId ? ' open' : ''}><summary><span class="rank">${i + 1}</span>`
