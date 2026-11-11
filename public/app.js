@@ -305,9 +305,9 @@ async function renderStandings() {
       <button class="mpill ${proj ? '' : 'active'}" data-mode="live">Leaderboard</button>
       <button class="mpill ${proj ? 'active' : ''}" data-mode="proj">Projected</button>
     </div>
-    <div class="board-wrap"><table class="board">
+    <div class="board-wrap"><table class="board standings"><colgroup><col class="c-team">${matchNos.map(() => '<col class="c-m">').join('')}<col class="c-total"></colgroup>
       <thead><tr>
-        <th style="text-align:left;padding-left:2px"><span style="display:inline-block;transform:translateX(52px)">Team</span></th>
+        <th style="text-align:left;padding-left:38px">Team</th>
         ${matchNos.map(n => `<th>M${n}</th>`).join('')}
         <th>Total</th>
       </tr></thead>
