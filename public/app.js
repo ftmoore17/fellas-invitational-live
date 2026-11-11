@@ -1634,7 +1634,7 @@ async function renderCalcutta() {
       <h2>Projected Payouts <span class="tiny">· based on live standings</span></h2>
       ${payoutData.payouts.length === 0
         ? `<div class="sub">Payouts appear once the first scores are in.</div>`
-        : `<div class="sub">Pool ${cMoney(board.pool_cents)} split ${splitText}.</div>
+        : `<div class="sub">Split ${splitText}.</div>
       ${payoutData.payouts.map(p => `
         <div class="cpay">
           <div class="cpay-head"><span class="cdot" style="background:${teamHex(p.color)}"></span><b>${ordinal(p.place)} · ${esc(p.color)}</b><b>${cMoney(p.prize_cents)}</b></div>
@@ -1701,11 +1701,11 @@ async function renderCalcutta() {
   if (team) {
     html += `
     <div class="card">
-      <h2><span class="cdot" style="background:${teamHex(team.color)}"></span> ${esc(team.color)} <span class="tiny">· ${cMoney(team.total_cents)} total</span></h2>
+      <h2><span class="cdot" style="background:${teamHex(team.color)}"></span> ${esc(team.color)} · ${cMoney(team.total_cents)} total</h2>
       ${team.bids.length === 0 ? `<div class="sub">No bids yet.</div>` : team.bids.map(b => `
         <div class="cbid">
           <div class="cbid-main">
-            <b>${esc(b.name)}</b>
+            <span>${esc(b.name)}</span>
             <span class="tiny">${b.pct}% of team</span>
           </div>
           ${isAdmin
