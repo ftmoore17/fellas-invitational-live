@@ -8,8 +8,9 @@
  *    For 9-hole segments the 18-hole CH is halved and rounded.
  *  - Strokes allocated by stroke index (standard: SI ≤ CH gets a stroke,
  *    second/third rounds on low-SI holes when CH > 18).
- *  - Match play (9 holes): win = 2 pts, tie = 1–1, loss = 0 (format change,
- *    Trice 2026-11-10 — Stableford no longer counts toward team points).
+ *  - Match play (9 holes): win = 1 pt, tie = 0.5–0.5, loss = 0 (half-point
+ *    scale, Trice 2026-11-11; supersedes the 2026-11-10 scale of win = 2,
+ *    tie = 1–1. Stableford does not count toward team points.)
  *    Match Points stay empty until the match is FINAL (all holes complete).
  *  - Team tiebreaker: holes won − holes lost across every match, counting
  *    ALL 9 holes — including holes played after a match was decided.
@@ -164,11 +165,11 @@ function matchPlayResult(sideANets, sideBNets, holes) {
   return { status, through, final, winner, upA: effUpA, closedOut, leader: effUpA > 0 ? 'A' : effUpA < 0 ? 'B' : null, holesWonA, holesWonB };
 }
 
-/** Match points for a final result: winner 2, tie 1–1, loser 0. */
+/** Match points for a final result: winner 1, tie 0.5–0.5, loser 0. */
 function matchPointsFor(winner, side) {
   if (!winner) return null;              // not final → dash
-  if (winner === 'T') return 1;
-  return winner === side ? 2 : 0;
+  if (winner === 'T') return 0.5;
+  return winner === side ? 1 : 0;
 }
 
 /**

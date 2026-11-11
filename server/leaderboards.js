@@ -7,9 +7,10 @@
  *  - Weekend low-net individuals (M1,2,4,5,6,7 only — scramble excluded),
  *    with tier filter and gross+net totals.
  *  - Schedule + match detail with live match-play status and hole strips.
- * Format (Trice, 2026-11-10): matches pay 2 (win) / 1 (tie) / 0, scramble
- * pays from the field-size ladder, and Stableford no longer counts toward
- * team points. Raffle tickets (individual birdie/eagle/albatross pot) live
+ * Format (Trice, 2026-11-11): matches pay 1 (win) / 0.5 (tie) / 0, the
+ * scramble pays from the equal-average half-point ladder, and Stableford
+ * does not count toward team points. Raffle tickets (individual
+ * birdie/eagle/albatross pot) live
  * on their own board (computeTicketBoard).
  * Tiebreakers:
  *  - Team standings: tied on points → higher holes differential ranks
@@ -275,15 +276,18 @@ function projectedScramblePoints(entries, scale) {
 }
 
 /**
- * Scramble placement ladder (Trice, 2026-11-10): points by finishing
- * place, anchored at the top so BOTH courses pay equally — 1st place
- * always pays 6, 2nd pays 5, and so on down, whatever the field size
- * (six teams → 6,5,4,3,2,1; four teams → 6,5,4,3; seven → 6,…,1,0).
- * Same finish, same points, on either course. Supersedes the per-course
- * points_scale stored in the DB.
+ * Scramble placement ladder (Trice, 2026-11-11): half-point steps, built
+ * so BOTH courses pay the same AVERAGE per team — that's the fairness
+ * rule. The largest field starts at 0.5 and steps up 0.5 a place (six
+ * teams → 0.5,1.0,1.5,2.0,2.5,3.0 from last to first; average 1.75). A
+ * smaller field's ladder shifts up so its average matches: four teams →
+ * 1.0,1.5,2.0,2.5 (average 1.75). Equal-size fields get identical
+ * ladders. Supersedes the per-course points_scale stored in the DB and
+ * the 2026-11-10 top-anchored ladder (1st always 6).
  */
-function scrambleLadder(fieldSize) {
-  return Array.from({ length: fieldSize }, (_, i) => Math.max(0, 6 - i));
+function scrambleLadder(fieldSize, maxFieldSize) {
+  const start = 0.5 + (maxFieldSize - fieldSize) * 0.25;
+  return Array.from({ length: fieldSize }, (_, i) => start + 0.5 * (fieldSize - 1 - i));
 }
 
 /**
@@ -292,7 +296,7 @@ function scrambleLadder(fieldSize) {
  *   holesWon, holesLost, matches: {1:{mp},...,3:{pts},...} }] }
  * With opts.projected, in-progress matches contribute the points they
  * would earn if they ended right now (current leader takes the win;
- * all-square splits 1–1; scramble places by live score vs par).
+ * all-square splits 0.5–0.5; scramble places by live score vs par).
  */
 function computeMasterLeaderboard(tournamentId, opts = {}) {
   const projected = !!(opts && opts.projected);
@@ -322,8 +326,8 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
   for (const m of matches) {
     const pairings = getPairings(m.id);
     if (m.format === 'scramble') {
-      // Per-course points, from the field-size ladder (the stored
-      // per-course points_scale is superseded by the 2026-11-10 format).
+      // Per-course points, from the equal-average ladder (the stored
+      // per-course points_scale is superseded by the computed ladder).
       const byCourse = new Map(); // courseId -> entries[]
       for (const p of pairings) {
         const course = getCourse(p.course_id);
@@ -331,8 +335,9 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
         if (!byCourse.has(p.course_id)) byCourse.set(p.course_id, []);
         byCourse.get(p.course_id).push({ teamId: ev.teamId, holes: ev.holes, complete: ev.complete, relPar: ev.relPar, thru: ev.thru });
       }
+      const maxField = Math.max(...[...byCourse.values()].map(e => e.length));
       for (const [courseId, entries] of byCourse) {
-        const scale = scrambleLadder(entries.length);
+        const scale = scrambleLadder(entries.length, maxField);
         const pts = projected && entries.some(e => !e.complete)
           ? projectedScramblePoints(entries, scale)
           : S.scrambleCoursePoints(entries, scale);
@@ -351,14 +356,14 @@ function computeMasterLeaderboard(tournamentId, opts = {}) {
         if (!course) continue;
         const ev = evaluatePairing(p, m, course);
         // Projected: an in-progress pairing contributes the match points
-        // it would earn if it ended right now — current leader takes 2,
-        // all-square splits 1–1. Pairings with no completed holes yet
+        // it would earn if it ended right now — current leader takes 1,
+        // all-square splits 0.5–0.5. Pairings with no completed holes yet
         // project nothing.
         let mpA = ev.mpA, mpB = ev.mpB;
         if (projected && mpA == null && ev.through > 0) {
-          if (ev.leader === 'A') { mpA = 2; mpB = 0; }
-          else if (ev.leader === 'B') { mpA = 0; mpB = 2; }
-          else { mpA = 1; mpB = 1; }
+          if (ev.leader === 'A') { mpA = 1; mpB = 0; }
+          else if (ev.leader === 'B') { mpA = 0; mpB = 1; }
+          else { mpA = 0.5; mpB = 0.5; }
         }
         // Tiebreaker holes accumulate for every pairing, decided or not —
         // all 9 holes count, including any played after the closeout.

@@ -38,6 +38,10 @@ function fmtToPar(v) {
   if (v === 0) return 'E';
   return (v > 0 ? '+' : '') + v;
 }
+// Team points always show one decimal (1.0, 2.5, 0.5) — half-point scale.
+function fmtPts(v) {
+  return v == null ? '' : Number(v).toFixed(1);
+}
 function toParClass(v) {
   if (v == null || v === 0) return '';
   return v < 0 ? 'topar-neg' : 'topar-pos';
@@ -316,17 +320,17 @@ async function renderStandings() {
           ${matchNos.map(n => {
             const c = t.matches[n];
             if (!c || !c.started) return `<td></td>`;
-            if (n === 3) return `<td>${c.pts == null ? '' : c.pts}</td>`;
-            return `<td>${c.mp == null ? '' : c.mp}</td>`;
+            if (n === 3) return `<td>${fmtPts(c.pts)}</td>`;
+            return `<td>${fmtPts(c.mp)}</td>`;
           }).join('')}
-          <td class="total">${t.total}</td>
+          <td class="total">${fmtPts(t.total)}</td>
         </tr>
         <tr class="teamdetail" data-team="${t.teamId}"${state.lbTeam === t.teamId ? '' : ' hidden'}>
           <td colspan="9"><div class="teammembers">${(t.members || []).map(m => `<span class="tmember"><b>${esc(m.tier || '–')}</b> · ${esc(m.name)}</span>`).join('')}</div></td>
         </tr>`).join('')}
       </tbody>
     </table></div>
-    <div class="legend">${proj ? 'Projected — every match scored as it stands right now<br>' : ''}Win = 2 pts · Tie = 1 pt${prizeLegend()}</div>`;
+    <div class="legend">${proj ? 'Projected — every match scored as it stands right now<br>' : ''}Win = 1 pt · Tie = 0.5 pt${prizeLegend()}</div>`;
 
   $$('#lb-standings .lbmode .mpill').forEach(b => b.onclick = () => {
     if (state.lbMode === b.dataset.mode) return;
