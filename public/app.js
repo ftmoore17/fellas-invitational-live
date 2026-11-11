@@ -1638,7 +1638,7 @@ async function renderCalcutta() {
 
   let html = `
     <div class="card cpool">
-      <div class="sub">Calcutta Pool</div>
+      <h2>Calcutta Pool</h2>
       <div class="cpool-total">${cMoney(board.pool_cents)}</div>
       <div class="tiny">${board.bid_count} bid${board.bid_count === 1 ? '' : 's'}</div>
     </div>`;
