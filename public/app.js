@@ -307,7 +307,7 @@ async function renderStandings() {
     </div>
     <div class="board-wrap"><table class="board">
       <thead><tr>
-        <th style="text-align:left;padding-left:40px">Team</th>
+        <th style="text-align:left;padding-left:30px">Team</th>
         ${matchNos.map(n => `<th>M${n}</th>`).join('')}
         <th>Total</th>
       </tr></thead>

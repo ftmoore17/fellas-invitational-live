@@ -186,7 +186,7 @@ table.board .sfsep { margin-left: 2px; }
 table.board .mpv { display: inline-block; min-width: 1.25em; text-align: right; }
 table.board .sfv { display: inline-block; min-width: 1.25em; text-align: right; margin-left: .5em; }
 table.board tbody td { border-top: 1px solid rgba(255,255,255,.08); }
-table.board td.teamcell { text-align: left; padding-left: 12px; }
+table.board td.teamcell { text-align: left; }
 table.board td.teamtoggle { cursor: pointer; }
 /* Expanded roster under a standings row: the team's four members with
    tiers, in the standings' dark style. Members wrap within the row, so
@@ -194,17 +194,17 @@ table.board td.teamtoggle { cursor: pointer; }
 table.board tr.teamdetail[hidden] { display: none; }
 table.board tr.teamdetail td {
   text-align: left; white-space: normal; background: rgba(255,255,255,.05);
-  padding: 8px 10px 11px 40px;
+  padding: 8px 10px 11px 30px;
 }
 .teammembers { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .tmember { font-size: 12px; color: #c9d6ee; }
 .tmember b { color: var(--gold); font-weight: 800; }
-.teamcell .tname { font-weight: 700; display: flex; align-items: center; gap: 4px; }
-.teamcell .tcolor { font-size: 14px; }
+.teamcell .tname { font-weight: 700; display: flex; align-items: center; gap: 3px; transform: translateX(8px); }
+.teamcell .tcolor { font-size: 13px; }
 .teamcell .back { font-size: 11px; color: #9fb2d4; margin-left: 26px; }
 .swatch { width: 10px; height: 22px; border-radius: 5px; display: inline-block; flex: none; vertical-align: middle; }
-.place { font-weight: 800; color: var(--gold); width: 24px; display: inline-block; }
-td.total { font-weight: 800; color: var(--gold); font-size: 17px; }
+.place { font-weight: 800; color: var(--gold); display: inline-block; }
+td.total { font-weight: 800; color: var(--gold); font-size: 15px; }
 .legend { font-size: 12px; color: var(--muted); margin: 8px 4px; }
 
 /* ---------- generic tables (boards) ---------- */
