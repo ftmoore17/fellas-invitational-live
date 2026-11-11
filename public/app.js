@@ -999,7 +999,7 @@ async function renderMatchBoard() {
   try { data = await api(`/api/boards/match/${n}`); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
   const label = data.format === 'scramble' ? `Match ${n} · Team Low Net — ${esc(data.nineLabel)}`
-    : data.format === 'singles' ? `Match ${n} · Individual Low Net — ${esc(data.nineLabel)}`
+    : data.format === 'singles' ? `Match ${n} · Low Net — ${esc(data.nineLabel)}`
     : `Match ${n} · Pair Low Net — ${esc(data.nineLabel)}`;
   const who = data.format === 'scramble' ? 'Team' : data.format === 'singles' ? 'Player' : 'Pair';
   // M4/M5 are split-tee matches (each pair plays front or back); Low Net is
