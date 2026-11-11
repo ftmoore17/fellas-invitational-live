@@ -1614,6 +1614,28 @@ async function renderCalcutta() {
   }
   const team = board.teams.find(t => t.id === calcuttaTeamId);
 
+  // The selected team's bid card, factored out so a pill tap can swap just
+  // this card in place instead of re-rendering the whole Calcutta tab.
+  const teamCardHtml = () => {
+    const t = board.teams.find(x => x.id === calcuttaTeamId);
+    if (!t) return '';
+    return `
+    <div class="card">
+      <h2 class="cteam-head"><span><span class="cdot" style="background:${teamHex(t.color)}"></span> ${esc(t.color)}</span><span>${cMoney(t.total_cents)} Total</span></h2>
+      ${t.bids.length === 0 ? `<div class="sub">No bids yet.</div>` : t.bids.map(b => `
+        <div class="cbid">
+          <div class="cbid-main">
+            <span>${esc(b.name)}</span>
+            <span class="tiny">${b.pct}% of team</span>
+          </div>
+          ${isAdmin
+            ? `<input class="camt" type="number" min="1" step="1" value="${b.amount_cents / 100}" data-bid="${b.id}" aria-label="Bid amount">
+               <button class="cdel" data-bid="${b.id}" title="Delete bid">✕</button>`
+            : `<div class="cbid-amt">${cMoney(b.amount_cents)}</div>`}
+        </div>`).join('')}
+    </div>`;
+  };
+
   let html = `
     <div class="card cpool">
       <div class="sub">Calcutta Pool</div>
@@ -1684,7 +1706,7 @@ async function renderCalcutta() {
       <div class="sub">Own a piece of a team. If they win it all, your piece pays out of the pool. ${board.venmo_username ? `You'll pay @${esc(board.venmo_username)} on Venmo right after.` : `You'll pay on Venmo right after.`}</div>
       <div class="cform${isSpectator ? '' : ' crow'}">
         ${isSpectator ? `<label>Your name<input id="cbet-name" type="text" placeholder="e.g. Mike Smith" value="${esc(specName)}" maxlength="40" autocomplete="name"></label>` : ''}
-        <label>Team<select id="cbet-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)}</option>`).join('')}</select></label>
+        <label>Team<select id="cbet-team">${board.teams.map(t => `<option value="${t.id}"${t.id === calcuttaTeamId ? ' selected' : ''}>${esc(t.color)}</option>`).join('')}</select></label>
         <label>Amount $<input id="cbet-amount" type="number" min="1" step="1" placeholder="100"></label>
       </div>
       <div class="tiny" id="cbet-preview" style="margin:2px 0 6px"></div>
@@ -1701,23 +1723,7 @@ async function renderCalcutta() {
       ${board.teams.map(t => `<button class="mpill${t.id === calcuttaTeamId ? ' active' : ''}" data-ct="${t.id}"><span class="cdot" style="background:${teamHex(t.color)}"></span>${esc(t.color)} <b>${cMoney(t.total_cents)}</b></button>`).join('')}
     </div>`;
 
-  if (team) {
-    html += `
-    <div class="card">
-      <h2 class="cteam-head"><span><span class="cdot" style="background:${teamHex(team.color)}"></span> ${esc(team.color)}</span><span>${cMoney(team.total_cents)} Total</span></h2>
-      ${team.bids.length === 0 ? `<div class="sub">No bids yet.</div>` : team.bids.map(b => `
-        <div class="cbid">
-          <div class="cbid-main">
-            <span>${esc(b.name)}</span>
-            <span class="tiny">${b.pct}% of team</span>
-          </div>
-          ${isAdmin
-            ? `<input class="camt" type="number" min="1" step="1" value="${b.amount_cents / 100}" data-bid="${b.id}" aria-label="Bid amount">
-               <button class="cdel" data-bid="${b.id}" title="Delete bid">✕</button>`
-            : `<div class="cbid-amt">${cMoney(b.amount_cents)}</div>`}
-        </div>`).join('')}
-    </div>`;
-  }
+  html += `<div id="cteam-slot">${teamCardHtml()}</div>`;
 
   if (isAdmin) {
     html += `
@@ -1764,7 +1770,42 @@ async function renderCalcutta() {
 
   el.innerHTML = html;
 
-  el.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => { calcuttaTeamId = Number(b.dataset.ct); renderCalcutta(); });
+  // Admin bid-row wiring for the team card — re-run after an in-place swap.
+  const wireTeamCard = () => {
+    if (!isAdmin) return;
+    el.querySelectorAll('#cteam-slot .camt').forEach(inp => {
+      inp.onchange = async () => {
+        try {
+          await api(`/api/admin/calcutta/bids/${inp.dataset.bid}`, { method: 'PATCH', body: JSON.stringify({ amount: Number(inp.value) }) });
+          renderCalcutta();
+        } catch (e) { inp.classList.add('cerr'); setTimeout(() => inp.classList.remove('cerr'), 1500); }
+      };
+    });
+    el.querySelectorAll('#cteam-slot .cdel').forEach(btn => {
+      btn.onclick = async () => {
+        if (!btn.dataset.armed) {
+          btn.dataset.armed = '1'; btn.textContent = 'Sure?';
+          setTimeout(() => { delete btn.dataset.armed; btn.textContent = '✕'; }, 4000);
+          return;
+        }
+        await api(`/api/admin/calcutta/bids/${btn.dataset.bid}`, { method: 'DELETE' });
+        renderCalcutta();
+      };
+    });
+  };
+
+  el.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => {
+    calcuttaTeamId = Number(b.dataset.ct);
+    // Swap only the pills' active state and the team card — no refetch and
+    // no full re-render, so tapping through teams is instant, the page
+    // doesn't flash, and scroll position holds. The bet form's team select
+    // follows the pill so the preview stays on the same team.
+    el.querySelectorAll('[data-ct]').forEach(p => p.classList.toggle('active', Number(p.dataset.ct) === calcuttaTeamId));
+    const slot = $('#cteam-slot');
+    if (slot) { slot.innerHTML = teamCardHtml(); wireTeamCard(); }
+    const sel = $('#cbet-team');
+    if (sel && Number(sel.value) !== calcuttaTeamId) { sel.value = String(calcuttaTeamId); if (sel.onchange) sel.onchange(); }
+  });
 
   // Venmo pay button: try the Venmo app first (deep link with amount + note
   // prefilled), fall back to venmo.com if the app isn't installed.
@@ -1849,25 +1890,7 @@ async function renderCalcutta() {
         renderCalcutta();
       } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
     };
-    el.querySelectorAll('.camt').forEach(inp => {
-      inp.onchange = async () => {
-        try {
-          await api(`/api/admin/calcutta/bids/${inp.dataset.bid}`, { method: 'PATCH', body: JSON.stringify({ amount: Number(inp.value) }) });
-          renderCalcutta();
-        } catch (e) { inp.classList.add('cerr'); setTimeout(() => inp.classList.remove('cerr'), 1500); }
-      };
-    });
-    el.querySelectorAll('.cdel').forEach(btn => {
-      btn.onclick = async () => {
-        if (!btn.dataset.armed) {
-          btn.dataset.armed = '1'; btn.textContent = 'Sure?';
-          setTimeout(() => { delete btn.dataset.armed; btn.textContent = '✕'; }, 4000);
-          return;
-        }
-        await api(`/api/admin/calcutta/bids/${btn.dataset.bid}`, { method: 'DELETE' });
-        renderCalcutta();
-      };
-    });
+    wireTeamCard();
     $('#cb-add').onclick = async () => {
       const err = $('#cb-err'); err.classList.add('hidden');
       try {
