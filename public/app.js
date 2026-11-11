@@ -1631,7 +1631,7 @@ async function renderCalcutta() {
     .join(' / ') || '1st 100%';
   html += `
     <div class="card">
-      <h2>Projected payouts <span class="tiny">· based on live standings</span></h2>
+      <h2>Projected Payouts <span class="tiny">· based on live standings</span></h2>
       ${payoutData.payouts.length === 0
         ? `<div class="sub">Payouts appear once the first scores are in.</div>`
         : `<div class="sub">Pool ${cMoney(board.pool_cents)} split ${splitText}.</div>
@@ -1666,7 +1666,7 @@ async function renderCalcutta() {
     const noName = isSpectator && !specName;
     html += `
     <div class="card">
-      <h2>Your bets <span class="tiny">· ${cMoney(myTotal)} total</span></h2>
+      <h2>Your Bets <span class="tiny">· ${cMoney(myTotal)} total</span></h2>
       ${noName ? `<div class="sub">Type your name below to see and track your bets.</div>`
         : mine.length === 0 ? `<div class="sub">No bets yet — pick a team below.</div>` : mine.map(b => `
         <div class="cbid">
