@@ -194,12 +194,12 @@ table.board td.teamtoggle { cursor: pointer; }
 table.board tr.teamdetail[hidden] { display: none; }
 table.board tr.teamdetail td {
   text-align: left; white-space: normal; background: rgba(255,255,255,.05);
-  padding: 8px 10px 11px 30px;
+  padding: 8px 10px 11px 52px;
 }
 .teammembers { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .tmember { font-size: 12px; color: #c9d6ee; }
 .tmember b { color: var(--gold); font-weight: 800; }
-.teamcell .tname { font-weight: 700; display: flex; align-items: center; gap: 3px; transform: translateX(8px); }
+.teamcell .tname { font-weight: 700; display: flex; align-items: center; gap: 3px; transform: translateX(26px); }
 .teamcell .tcolor { font-size: 13px; }
 .teamcell .back { font-size: 11px; color: #9fb2d4; margin-left: 26px; }
 .swatch { width: 10px; height: 22px; border-radius: 5px; display: inline-block; flex: none; vertical-align: middle; }
