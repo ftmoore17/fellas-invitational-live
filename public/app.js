@@ -1625,17 +1625,19 @@ async function renderCalcutta() {
   // 2026-11-11): they belong to the whole pool, not to whichever team's
   // bets happen to be listed above them. Until the first scores are in,
   // the projection is empty — no standings, no payouts.
-  const splitText = [1, 2, 3]
-    .filter(p => Number((board.payouts || {})[p]) > 0)
+  const splitPlaces = [1, 2, 3].filter(p => Number((board.payouts || {})[p]) > 0);
+  const splitText = splitPlaces
     .map(p => `${ordinal(p)} ${board.payouts[p]}%`)
     .join(' / ') || '1st 100%';
+  // Winner-take-all (1st 100%) needs no split line — it goes unsaid.
+  const showSplit = !(splitPlaces.length === 1 && Number(board.payouts[splitPlaces[0]]) === 100);
   html += `
     <div class="card">
       <h2>Projected Payouts</h2>
       <div class="sub">Based on live standings.</div>
       ${payoutData.payouts.length === 0
         ? `<div class="sub">Payouts appear once the first scores are in.</div>`
-        : `<div class="sub">Split ${splitText}.</div>
+        : `${showSplit ? `<div class="sub">Split ${splitText}.</div>` : ''}
       ${payoutData.payouts.map(p => `
         <div class="cpay">
           <div class="cpay-head"><span class="cdot" style="background:${teamHex(p.color)}"></span><b>${ordinal(p.place)} · ${esc(p.color)}</b></div>
