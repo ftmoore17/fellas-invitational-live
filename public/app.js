@@ -1775,18 +1775,24 @@ async function renderCalcutta() {
       // Confirm step: nothing is placed until Place Bet is tapped.
       const pct = amount / (team.total_cents / 100 + amount) * 100;
       $('#bet-summary').innerHTML = `<div style="text-align:center"><div class="cpool-total" style="font-size:32px">${cMoney(Math.round(amount * 100))}</div>`
-        + `<div class="sub">on <b>${esc(team.color)}</b> — about ${pct.toFixed(1)}% of the team.</div></div>`;
+        + `<div class="sub">on <b style="color:${teamHex(team.color)}">${esc(team.color)}</b> — about ${pct.toFixed(1)}% of the team.</div></div>`;
       $('#bet-err').classList.add('hidden');
       $('#bet-overlay').classList.remove('hidden');
       $('#bet-back').onclick = () => $('#bet-overlay').classList.add('hidden');
       $('#bet-go').onclick = async () => {
+        const go = $('#bet-go'), back = $('#bet-back');
+        if (go.disabled) return;
+        go.disabled = true; back.disabled = true; // one tap, one bet — no double-submit
         try {
           await api('/api/calcutta/bets', { method: 'POST', body: JSON.stringify({ team_id: teamId, amount, bidder_name }) });
           if (isSpectator) localStorage.setItem('fellas_spec_name', bidder_name);
           $('#bet-overlay').classList.add('hidden');
           calcuttaLastBet = { amount_cents: Math.round(amount * 100), color: team.color };
           renderCalcutta();
-        } catch (e) { const be = $('#bet-err'); be.textContent = e.message; be.classList.remove('hidden'); }
+        } catch (e) {
+          go.disabled = false; back.disabled = false;
+          const be = $('#bet-err'); be.textContent = e.message; be.classList.remove('hidden');
+        }
       };
     };
   }
