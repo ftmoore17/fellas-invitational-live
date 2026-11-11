@@ -1761,7 +1761,7 @@ async function renderCalcutta() {
     $('#cbet-team').onchange = updPreview;
     $('#cbet-amount').oninput = updPreview;
     updPreview();
-    $('#cbet-go').onclick = async () => {
+    $('#cbet-go').onclick = () => {
       const err = $('#cbet-err'); err.classList.add('hidden');
       const teamId = Number($('#cbet-team').value);
       const amount = Number($('#cbet-amount').value);
@@ -1770,13 +1770,24 @@ async function renderCalcutta() {
       if (isSpectator) {
         bidder_name = (($('#cbet-name') || {}).value || '').trim().replace(/\s+/g, ' ');
         if (!bidder_name) { err.textContent = 'Type your name to place a bet'; err.classList.remove('hidden'); return; }
-        localStorage.setItem('fellas_spec_name', bidder_name);
       }
-      try {
-        const resp = await api('/api/calcutta/bets', { method: 'POST', body: JSON.stringify({ team_id: teamId, amount, bidder_name }) });
-        calcuttaLastBet = { amount_cents: Math.round(amount * 100), color: team ? team.color : '' };
-        renderCalcutta();
-      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+      if (!team || !(amount > 0)) { err.textContent = 'Enter an amount to bet'; err.classList.remove('hidden'); return; }
+      // Confirm step: nothing is placed until Place Bet is tapped.
+      const pct = amount / (team.total_cents / 100 + amount) * 100;
+      $('#bet-summary').innerHTML = `<div style="text-align:center"><div class="cpool-total" style="font-size:32px">${cMoney(Math.round(amount * 100))}</div>`
+        + `<div class="sub">on <b>${esc(team.color)}</b> — about ${pct.toFixed(1)}% of the team.</div></div>`;
+      $('#bet-err').classList.add('hidden');
+      $('#bet-overlay').classList.remove('hidden');
+      $('#bet-back').onclick = () => $('#bet-overlay').classList.add('hidden');
+      $('#bet-go').onclick = async () => {
+        try {
+          await api('/api/calcutta/bets', { method: 'POST', body: JSON.stringify({ team_id: teamId, amount, bidder_name }) });
+          if (isSpectator) localStorage.setItem('fellas_spec_name', bidder_name);
+          $('#bet-overlay').classList.add('hidden');
+          calcuttaLastBet = { amount_cents: Math.round(amount * 100), color: team.color };
+          renderCalcutta();
+        } catch (e) { const be = $('#bet-err'); be.textContent = e.message; be.classList.remove('hidden'); }
+      };
     };
   }
 
