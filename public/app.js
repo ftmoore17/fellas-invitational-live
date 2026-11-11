@@ -1331,46 +1331,177 @@ async function renderAdmin() {
     return;
   }
   const a = state.admin;
-  const tabs = [['players', 'Players'], ['teams', 'Teams'], ['courses', 'Courses'], ['strokes', 'Strokes'], ['matches', 'Matches'], ['prizes', 'Prizes'], ['totals', 'Bid Totals'], ['export', 'Score Export'], ['setup', 'Setup']];
+  const tabs = [['players', 'Players'], ['teams', 'Teams'], ['courses', 'Courses'], ['strokes', 'Strokes'], ['matches', 'Matches'], ['prizes', 'Prizes'], ['calcutta', 'Calcutta'], ['export', 'Score Export'], ['setup', 'Setup']];
   el.innerHTML = `
     <div class="admin-nav">${tabs.map(([k, l]) => `<button class="admintab ${a.section === k ? 'active' : ''}" data-s="${k}">${l}</button>`).join('')}</div>
     <div id="admin-body"><div class="card center tiny">Loading…</div></div>`;
   $$('#tab-content .admintab').forEach(b => b.onclick = () => { state.admin.section = b.dataset.s; renderAdmin(); });
-  ({ players: adminPlayers, teams: adminTeams, courses: adminCourses, strokes: adminStrokes, matches: adminMatches, prizes: adminPrizes, totals: adminTotals, export: adminExport, setup: adminSetup })[a.section]();
+  ({ players: adminPlayers, teams: adminTeams, courses: adminCourses, strokes: adminStrokes, matches: adminMatches, prizes: adminPrizes, calcutta: adminCalcutta, export: adminExport, setup: adminSetup })[a.section]();
 }
 
-async function adminTotals() {
+async function adminCalcutta() {
   const el = $('#admin-body');
-  let data;
-  try { data = await api('/api/admin/calcutta/bid-totals'); }
-  catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
-  const rows = data.rows || [];
+  let board, players, totals;
+  try {
+    [board, players, totals] = await Promise.all([
+      api('/api/calcutta'), api('/api/admin/players'), api('/api/admin/calcutta/bid-totals'),
+    ]);
+  } catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
+  const allBids = board.teams.flatMap(t => (t.bids || []).map(b => ({ ...b, color: t.color })));
+  const totalsRows = totals.rows || [];
   el.innerHTML = `
+    <div class="card">
+      <h2>Calcutta settings</h2>
+      <button class="btn ${board.open ? 'secondary' : 'primary'} block" id="cs-toggle" style="margin-top:0">${board.open ? 'Close betting' : 'Reopen betting'}</button>
+      <div class="sub" style="margin-top:10px">Your Venmo username — players get a pay button with it after betting.</div>
+      <div class="cform crow" style="align-items:flex-end">
+        <label style="flex:1">@<input id="cs-venmo" type="text" placeholder="your-venmo-name" value="${esc(board.venmo_username || '')}" autocapitalize="none"></label>
+        <button class="btn secondary" id="cs-save" style="margin:6px 0">Save</button>
+      </div>
+      <div class="err hidden" id="cs-err"></div>
+      <div class="okmsg hidden" id="cs-ok"></div>
+    </div>
+    <div class="card">
+      <h2>Enter a bid</h2>
+      <div class="sub">Every bid counts as paid as soon as it's entered.</div>
+      <div class="cform">
+        <label>Bidder<select id="cb-player">${players.map(p => `<option value="${p.id}">${esc(p.name)}${p.team_color ? ` (${esc(p.team_color)})` : ''}</option>`).join('')}</select></label>
+        <label>Team<select id="cb-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)} — ${cMoney(t.total_cents)} in</option>`).join('')}</select></label>
+        <label>Amount $<input id="cb-amount" type="number" min="1" step="1" placeholder="100"></label>
+        <button class="btn primary block" id="cb-add">Add bid</button>
+        <div class="err hidden" id="cb-err"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>All bids</h2>
+      <div class="sub">Edit an amount or remove a bid.</div>
+      ${allBids.length === 0 ? `<div class="sub">No bids yet.</div>` : allBids.map(b => `
+        <div class="cbid">
+          <div class="cbid-main">
+            <b>${esc(b.name)}</b>
+            <span class="tiny">${esc(b.color)} · ${b.pct}% of team</span>
+          </div>
+          <input class="camt" type="number" min="1" step="1" value="${b.amount_cents / 100}" data-bid="${b.id}" aria-label="Bid amount">
+          <button class="cdel" data-bid="${b.id}" title="Delete bid">✕</button>
+        </div>`).join('')}
+    </div>
     <div class="card">
       <h2>Bid Totals</h2>
       <div class="sub">What each person owes on Venmo, across every team they backed.</div>
-      ${rows.length === 0 ? `<div class="sub">No bids yet.</div>` : rows.map(r => `
+      ${totalsRows.length === 0 ? `<div class="sub">No bids yet.</div>` : totalsRows.map(r => `
         <div class="cbid">
           <div class="cbid-main"><b>${esc(r.name)}</b><span class="tiny">${r.bids} bid${r.bids === 1 ? '' : 's'}</span></div>
           <div class="cbid-amt">${cMoney(r.total_cents)}</div>
         </div>`).join('') + `
         <div class="cbid" style="border-top:2px solid #d7dee9">
           <div class="cbid-main"><b>Pool Total</b></div>
-          <div class="cbid-amt">${cMoney(data.pool_cents)}</div>
+          <div class="cbid-amt">${cMoney(totals.pool_cents)}</div>
         </div>`}
-      ${rows.length ? `<button class="btn secondary block" id="totals-csv" style="margin-top:12px">Export CSV</button>` : ''}
+      ${totalsRows.length ? `<button class="btn secondary block" id="totals-csv" style="margin-top:12px">Export CSV</button>` : ''}
+    </div>
+    <div class="card">
+      <h2>Payout split</h2>
+      <div class="sub">% of the pool to the 1st / 2nd / 3rd place teams. Must add up to 100%.</div>
+      <div class="crow">
+        <label>1st<input id="cp-1" type="number" min="0" max="100" value="${board.payouts[1]}"></label>
+        <label>2nd<input id="cp-2" type="number" min="0" max="100" value="${board.payouts[2]}"></label>
+        <label>3rd<input id="cp-3" type="number" min="0" max="100" value="${board.payouts[3]}"></label>
+      </div>
+      <button class="btn secondary block" id="cp-save">Save payout split</button>
+      <div class="err hidden" id="cp-err"></div>
+      <div class="okmsg hidden" id="cp-ok"></div>
+    </div>
+    <div class="card" style="border-color:#ca4747">
+      <h2 style="color:#ca4747">Danger Zone</h2>
+      <div class="sub">Wipe all Calcutta bids and start the auction over. Cannot be undone.</div>
+      <button class="btn block" id="cb-clear" style="background:#ca4747;color:#fff">Clear All Bids</button>
     </div>`;
-  const btn = $('#totals-csv');
-  if (btn) btn.onclick = () => {
+
+  $('#cs-toggle').onclick = async () => {
+    const err = $('#cs-err'); err.classList.add('hidden');
+    try {
+      await api('/api/admin/calcutta/settings', { method: 'PUT', body: JSON.stringify({ open: !board.open }) });
+      adminCalcutta();
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  };
+  $('#cs-save').onclick = async () => {
+    const err = $('#cs-err'), ok = $('#cs-ok');
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    try {
+      await api('/api/admin/calcutta/settings', { method: 'PUT', body: JSON.stringify({
+        venmo_username: $('#cs-venmo').value,
+      }) });
+      ok.textContent = 'Venmo username saved ✓'; ok.classList.remove('hidden');
+      adminCalcutta();
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  };
+  el.querySelectorAll('.camt').forEach(inp => {
+    inp.onchange = async () => {
+      try {
+        await api(`/api/admin/calcutta/bids/${inp.dataset.bid}`, { method: 'PATCH', body: JSON.stringify({ amount: Number(inp.value) }) });
+        adminCalcutta();
+      } catch (e) { inp.classList.add('cerr'); setTimeout(() => inp.classList.remove('cerr'), 1500); }
+    };
+  });
+  el.querySelectorAll('.cdel').forEach(btn => {
+    btn.onclick = async () => {
+      if (!btn.dataset.armed) {
+        btn.dataset.armed = '1'; btn.textContent = 'Sure?';
+        setTimeout(() => { delete btn.dataset.armed; btn.textContent = '✕'; }, 4000);
+        return;
+      }
+      await api(`/api/admin/calcutta/bids/${btn.dataset.bid}`, { method: 'DELETE' });
+      adminCalcutta();
+    };
+  });
+  $('#cb-add').onclick = async () => {
+    const err = $('#cb-err'); err.classList.add('hidden');
+    try {
+      await api('/api/admin/calcutta/bids', { method: 'POST', body: JSON.stringify({
+        player_id: Number($('#cb-player').value),
+        team_id: Number($('#cb-team').value),
+        amount: Number($('#cb-amount').value),
+      }) });
+      calcuttaTeamId = Number($('#cb-team').value);
+      adminCalcutta();
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  };
+  $('#cp-save').onclick = async () => {
+    const err = $('#cp-err'), ok = $('#cp-ok');
+    err.classList.add('hidden'); ok.classList.add('hidden');
+    try {
+      await api('/api/admin/calcutta/payouts', { method: 'PUT', body: JSON.stringify({
+        1: Number($('#cp-1').value), 2: Number($('#cp-2').value), 3: Number($('#cp-3').value),
+      }) });
+      ok.textContent = 'Payout split saved ✓'; ok.classList.remove('hidden');
+      adminCalcutta();
+    } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  };
+  const csvBtn = $('#totals-csv');
+  if (csvBtn) csvBtn.onclick = () => {
     const lines = ['Name,Total Owed,Bids'];
-    rows.forEach(r => lines.push(`"${String(r.name).replace(/"/g, '""')}",${(r.total_cents / 100).toFixed(2)},${r.bids}`));
-    lines.push(`Pool Total,${(data.pool_cents / 100).toFixed(2)},`);
+    totalsRows.forEach(r => lines.push(`"${String(r.name).replace(/"/g, '""')}",${(r.total_cents / 100).toFixed(2)},${r.bids}`));
+    lines.push(`Pool Total,${(totals.pool_cents / 100).toFixed(2)},`);
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'fellas-calcutta-bid-totals.csv';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  };
+  let armed = false;
+  $('#cb-clear').onclick = async () => {
+    const btn = $('#cb-clear');
+    if (!armed) {
+      armed = true;
+      btn.textContent = 'Are you sure? Tap again to wipe all bids';
+      setTimeout(() => { armed = false; btn.textContent = 'Clear All Bids'; }, 10000);
+      return;
+    }
+    armed = false;
+    btn.textContent = 'Clearing…'; btn.disabled = true;
+    try { await api('/api/admin/calcutta/bids', { method: 'DELETE' }); adminCalcutta(); }
+    catch (e) { btn.textContent = 'Clear All Bids'; btn.disabled = false; }
   };
 }
 
@@ -1630,20 +1761,17 @@ const cMoney = c => '$' + (c / 100).toLocaleString('en-US', { maximumFractionDig
 async function renderCalcutta() {
   const el = $('#tab-content');
   el.innerHTML = `<div class="card center tiny">Loading Calcutta…</div>`;
-  const isAdmin = !!state.me.canAdmin;
   const isPlayer = state.me.role === 'player';
   const isSpectator = state.me.role === 'spectator';
   const specName = isSpectator ? (localStorage.getItem('fellas_spec_name') || '').trim() : '';
-  let board, payoutData, players = [], mine = [];
+  let board, payoutData, mine = [];
   try {
     const reqs = [api('/api/calcutta'), api('/api/calcutta/payouts')];
-    if (isAdmin) reqs.push(api('/api/admin/players'));
     if (isPlayer) reqs.push(api('/api/calcutta/mine'));
     if (isSpectator && specName) reqs.push(api('/api/calcutta/mine?name=' + encodeURIComponent(specName)));
     const out = await Promise.all(reqs);
     board = out[0]; payoutData = out[1];
     let i = 2;
-    if (isAdmin) players = out[i++];
     if (isPlayer || (isSpectator && specName)) mine = out[i++].bets;
   } catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
 
@@ -1666,10 +1794,7 @@ async function renderCalcutta() {
             <span>${esc(b.name)}</span>
             <span class="tiny">${b.pct}% of team</span>
           </div>
-          ${isAdmin
-            ? `<input class="camt" type="number" min="1" step="1" value="${b.amount_cents / 100}" data-bid="${b.id}" aria-label="Bid amount">
-               <button class="cdel" data-bid="${b.id}" title="Delete bid">✕</button>`
-            : `<div class="cbid-amt">${cMoney(b.amount_cents)}</div>`}
+          <div class="cbid-amt">${cMoney(b.amount_cents)}</div>
         </div>`).join('')}
     </div>`;
   };
@@ -1763,74 +1888,8 @@ async function renderCalcutta() {
 
   html += `<div id="cteam-slot">${teamCardHtml()}</div>`;
 
-  if (isAdmin) {
-    html += `
-    <div class="card">
-      <h2>Calcutta settings</h2>
-      <button class="btn ${board.open ? 'secondary' : 'primary'} block" id="cs-toggle" style="margin-top:0">${board.open ? 'Close betting' : 'Reopen betting'}</button>
-      <div class="sub" style="margin-top:10px">Your Venmo username — players get a pay button with it after betting.</div>
-      <div class="cform crow" style="align-items:flex-end">
-        <label style="flex:1">@<input id="cs-venmo" type="text" placeholder="your-venmo-name" value="${esc(board.venmo_username || '')}" autocapitalize="none"></label>
-        <button class="btn secondary" id="cs-save" style="margin:6px 0">Save</button>
-      </div>
-      <div class="err hidden" id="cs-err"></div>
-      <div class="okmsg hidden" id="cs-ok"></div>
-    </div>
-    <div class="card">
-      <h2>Enter a bid</h2>
-      <div class="sub">Every bid counts as paid as soon as it's entered.</div>
-      <div class="cform">
-        <label>Bidder<select id="cb-player">${players.map(p => `<option value="${p.id}">${esc(p.name)}${p.team_color ? ` (${esc(p.team_color)})` : ''}</option>`).join('')}</select></label>
-        <label>Team<select id="cb-team">${board.teams.map(t => `<option value="${t.id}">${esc(t.color)} — ${cMoney(t.total_cents)} in</option>`).join('')}</select></label>
-        <label>Amount $<input id="cb-amount" type="number" min="1" step="1" placeholder="100"></label>
-        <button class="btn primary block" id="cb-add">Add bid</button>
-        <div class="err hidden" id="cb-err"></div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Payout split</h2>
-      <div class="sub">% of the pool to the 1st / 2nd / 3rd place teams. Must add up to 100%.</div>
-      <div class="crow">
-        <label>1st<input id="cp-1" type="number" min="0" max="100" value="${board.payouts[1]}"></label>
-        <label>2nd<input id="cp-2" type="number" min="0" max="100" value="${board.payouts[2]}"></label>
-        <label>3rd<input id="cp-3" type="number" min="0" max="100" value="${board.payouts[3]}"></label>
-      </div>
-      <button class="btn secondary block" id="cp-save">Save payout split</button>
-      <div class="err hidden" id="cp-err"></div>
-      <div class="okmsg hidden" id="cp-ok"></div>
-    </div>
-    <div class="card" style="border-color:#ca4747">
-      <h2 style="color:#ca4747">Danger Zone</h2>
-      <div class="sub">Wipe all Calcutta bids and start the auction over. Cannot be undone.</div>
-      <button class="btn block" id="cb-clear" style="background:#ca4747;color:#fff">Clear All Bids</button>
-    </div>`;
-  }
-
   el.innerHTML = html;
 
-  // Admin bid-row wiring for the team card — re-run after an in-place swap.
-  const wireTeamCard = () => {
-    if (!isAdmin) return;
-    el.querySelectorAll('#cteam-slot .camt').forEach(inp => {
-      inp.onchange = async () => {
-        try {
-          await api(`/api/admin/calcutta/bids/${inp.dataset.bid}`, { method: 'PATCH', body: JSON.stringify({ amount: Number(inp.value) }) });
-          renderCalcutta();
-        } catch (e) { inp.classList.add('cerr'); setTimeout(() => inp.classList.remove('cerr'), 1500); }
-      };
-    });
-    el.querySelectorAll('#cteam-slot .cdel').forEach(btn => {
-      btn.onclick = async () => {
-        if (!btn.dataset.armed) {
-          btn.dataset.armed = '1'; btn.textContent = 'Sure?';
-          setTimeout(() => { delete btn.dataset.armed; btn.textContent = '✕'; }, 4000);
-          return;
-        }
-        await api(`/api/admin/calcutta/bids/${btn.dataset.bid}`, { method: 'DELETE' });
-        renderCalcutta();
-      };
-    });
-  };
 
   el.querySelectorAll('[data-ct]').forEach(b => b.onclick = () => {
     calcuttaTeamId = Number(b.dataset.ct);
@@ -1840,7 +1899,7 @@ async function renderCalcutta() {
     // follows the pill so the preview stays on the same team.
     el.querySelectorAll('[data-ct]').forEach(p => p.classList.toggle('active', Number(p.dataset.ct) === calcuttaTeamId));
     const slot = $('#cteam-slot');
-    if (slot) { slot.innerHTML = teamCardHtml(); wireTeamCard(); }
+    if (slot) { slot.innerHTML = teamCardHtml(); }
     const sel = $('#cbet-team');
     if (sel && Number(sel.value) !== calcuttaTeamId) { sel.value = String(calcuttaTeamId); if (sel.onchange) sel.onchange(); }
   });
@@ -1909,64 +1968,6 @@ async function renderCalcutta() {
     };
   }
 
-  if (isAdmin) {
-    $('#cs-toggle').onclick = async () => {
-      const err = $('#cs-err'); err.classList.add('hidden');
-      try {
-        await api('/api/admin/calcutta/settings', { method: 'PUT', body: JSON.stringify({ open: !board.open }) });
-        renderCalcutta();
-      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
-    };
-    $('#cs-save').onclick = async () => {
-      const err = $('#cs-err'), ok = $('#cs-ok');
-      err.classList.add('hidden'); ok.classList.add('hidden');
-      try {
-        await api('/api/admin/calcutta/settings', { method: 'PUT', body: JSON.stringify({
-          venmo_username: $('#cs-venmo').value,
-        }) });
-        ok.textContent = 'Venmo username saved ✓'; ok.classList.remove('hidden');
-        renderCalcutta();
-      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
-    };
-    wireTeamCard();
-    $('#cb-add').onclick = async () => {
-      const err = $('#cb-err'); err.classList.add('hidden');
-      try {
-        await api('/api/admin/calcutta/bids', { method: 'POST', body: JSON.stringify({
-          player_id: Number($('#cb-player').value),
-          team_id: Number($('#cb-team').value),
-          amount: Number($('#cb-amount').value),
-        }) });
-        calcuttaTeamId = Number($('#cb-team').value);
-        renderCalcutta();
-      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
-    };
-    $('#cp-save').onclick = async () => {
-      const err = $('#cp-err'), ok = $('#cp-ok');
-      err.classList.add('hidden'); ok.classList.add('hidden');
-      try {
-        await api('/api/admin/calcutta/payouts', { method: 'PUT', body: JSON.stringify({
-          1: Number($('#cp-1').value), 2: Number($('#cp-2').value), 3: Number($('#cp-3').value),
-        }) });
-        ok.textContent = 'Payout split saved ✓'; ok.classList.remove('hidden');
-        renderCalcutta();
-      } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
-    };
-    let armed = false;
-    $('#cb-clear').onclick = async () => {
-      const btn = $('#cb-clear');
-      if (!armed) {
-        armed = true;
-        btn.textContent = 'Are you sure? Tap again to wipe all bids';
-        setTimeout(() => { armed = false; btn.textContent = 'Clear All Bids'; }, 10000);
-        return;
-      }
-      armed = false;
-      btn.textContent = 'Clearing…'; btn.disabled = true;
-      try { await api('/api/admin/calcutta/bids', { method: 'DELETE' }); renderCalcutta(); }
-      catch (e) { btn.textContent = 'Clear All Bids'; btn.disabled = false; }
-    };
-  }
 }
 
 // Start the app
