@@ -84,6 +84,15 @@ function getBoard(tournamentId) {
 /** Projected payouts from live standings. Place -> {team, prize, cuts[]}.
  *  Computed from the TOTAL pool (paid + pending) — the auction total is the prize. */
 function getPayouts(tournamentId) {
+  // No projection until the first score is in (Trice, 2026-11-11): with no
+  // golf played, every team is tied at zero and the "1st place" team would
+  // be arbitrary. Any hole score or scramble score opens the projection.
+  const anyScore = db.prepare(
+    `SELECT 1 FROM hole_scores hs JOIN pairings p ON p.id = hs.pairing_id JOIN matches m ON m.id = p.match_id WHERE m.tournament_id = ? LIMIT 1`
+  ).get(tournamentId) || db.prepare(
+    `SELECT 1 FROM scramble_scores ss JOIN pairings p ON p.id = ss.pairing_id JOIN matches m ON m.id = p.match_id WHERE m.tournament_id = ? LIMIT 1`
+  ).get(tournamentId);
+  if (!anyScore) return [];
   const board = getBoard(tournamentId);
   const lb = LB.computeMasterLeaderboard(tournamentId);
   const placeTeam = new Map(lb.teams.map(r => [r.place, r]));

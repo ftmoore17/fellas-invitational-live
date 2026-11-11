@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS matches (
   segment TEXT NOT NULL,                        -- front | back | full
   status TEXT NOT NULL DEFAULT 'scheduled',     -- scheduled | live | final
   locked INTEGER NOT NULL DEFAULT 0,
+  scoring_open INTEGER NOT NULL DEFAULT 0,      -- admin activates scoring per match (2026-11-11)
   UNIQUE(tournament_id, match_no)
 );
 
@@ -184,6 +185,12 @@ if (!_tcols.includes('venmo_username')) {
 }
 if (!_tcols.includes('calcutta_open')) {
   db.exec(`ALTER TABLE tournaments ADD COLUMN calcutta_open INTEGER DEFAULT 1`);
+}
+// Per-match scoring activation: matches start closed; the admin opens each
+// match's scoring from the Admin tab (Trice, 2026-11-11).
+const _mcols = db.prepare(`PRAGMA table_info(matches)`).all().map(c => c.name);
+if (!_mcols.includes('scoring_open')) {
+  db.exec(`ALTER TABLE matches ADD COLUMN scoring_open INTEGER NOT NULL DEFAULT 0`);
 }
 // Spectator Calcutta bids: typed bidder_name with NULL bidder_player_id.
 // Rebuilds calcutta_bids to relax the NOT NULL on bidder_player_id.

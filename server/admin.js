@@ -347,6 +347,21 @@ router.post('/matches/:matchNo/lock', (req, res) => {
   res.json({ ok: true, locked: !!locked });
 });
 
+// Per-match scoring activation (Trice, 2026-11-11): {open: true|false}.
+// Distinct from the setup `locked` freeze above — this gates ONLY score
+// entry by players; admins can always enter scores themselves.
+router.post('/matches/:matchNo/scoring', (req, res) => {
+  const t = currentTournament();
+  const m = db.prepare(`SELECT * FROM matches WHERE tournament_id = ? AND match_no = ?`)
+    .get(t.id, Number(req.params.matchNo));
+  if (!m) return res.status(404).json({ error: 'Match not found' });
+  const open = req.body && req.body.open === false ? 0 : 1;
+  db.prepare(`UPDATE matches SET scoring_open = ? WHERE id = ?`).run(open, m.id);
+  const broadcast = req.app.locals.broadcast;
+  if (broadcast) broadcast({ type: 'tournament_updated' });
+  res.json({ ok: true, scoring_open: !!open });
+});
+
 // ---------------------------------------------------------------- pairings
 
 router.post('/pairings', (req, res) => {

@@ -355,6 +355,11 @@ router.post('/scores', auth.requireScorer, (req, res) => {
   const match = db.prepare(`SELECT * FROM matches WHERE id = ?`).get(pairing.match_id);
   if (match.tournament_id !== t.id) return res.status(404).json({ error: 'Not found' });
   if (match.locked) return res.status(403).json({ error: 'Match is locked' });
+  // Per-match scoring activation (Trice, 2026-11-11): players can't enter
+  // scores until the admin opens this match. Admin entry always works.
+  if (!match.scoring_open && req.session.role !== 'admin') {
+    return res.status(403).json({ error: 'Scoring for this match is not open yet' });
+  }
 
   // Attribution: who entered this?
   let enteredBy = 'Admin', enteredByPlayerId = null;

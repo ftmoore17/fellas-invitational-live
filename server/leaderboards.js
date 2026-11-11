@@ -1037,7 +1037,7 @@ function getMatchDetail(tournamentId, matchNo) {
       const ev = evaluateScramblePairing(p, course);
       return { ...ev, color: teams.get(ev.teamId) };
     });
-    return { matchNo, label: m.label, format: 'scramble', status: m.status, rows };
+    return { matchNo, label: m.label, format: 'scramble', status: m.status, scoringOpen: !!m.scoring_open, rows };
   }
 
   const rows = pairings.map(p => {
@@ -1047,7 +1047,7 @@ function getMatchDetail(tournamentId, matchNo) {
     const colorA = teams.get(p.side_a_team_id), colorB = teams.get(p.side_b_team_id);
     return { ...ev, colorA, colorB };
   });
-  return { matchNo, label: m.label, format: m.format, status: m.status, rows };
+  return { matchNo, label: m.label, format: m.format, status: m.status, scoringOpen: !!m.scoring_open, rows };
 }
 
 /**

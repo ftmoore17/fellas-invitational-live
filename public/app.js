@@ -617,6 +617,13 @@ async function selectScoreMatch(n) {
     return;
   }
 
+  // Scoring activation: until the admin opens this match, players see a
+  // notice instead of the scoring steppers (the server also refuses saves).
+  if (!detail.scoringOpen && state.me.role === 'player') {
+    body.innerHTML = `<div class="card"><h2>${esc(detail.label)}</h2><div class="sub">Scoring for this match isn't open yet. It opens when Trice activates it.</div></div>`;
+    return;
+  }
+
   // Pick pairing: player's own group if available, else first (admin picks).
   let pairingId = null;
   if (state.me.role === 'player' && s.groups) {
@@ -1397,14 +1404,37 @@ async function adminMatches() {
   try { matches = await api('/api/admin/matches'); }
   catch (e) { el.innerHTML = `<div class="card"><div class="err">${esc(e.message)}</div></div>`; return; }
   el.innerHTML = `<div class="card"><h2>Matches</h2>
+    <div class="sub">Scoring starts locked for every match — players can't enter scores until you open a match here. You can always enter scores yourself.</div>
+    <div class="rowflex mt">
+      <button class="btn secondary" id="score-open-all">Open All Scoring</button>
+      <button class="btn secondary" id="score-lock-all">Lock All Scoring</button>
+    </div>
     ${matches.map(m => `
       <details class="adminrow"><summary>Match ${m.match_no} · ${esc(m.label)}</summary>
       <div class="body">
         <div class="tiny">Format: ${esc(m.format)} · Segment: ${esc(m.segment)} · Day: ${esc(m.day)}</div>
         <div class="rowflex mt">
+          <span class="tiny">Scoring: <b>${m.scoring_open ? 'Open' : 'Locked'}</b></span>
+          <button class="btn ${m.scoring_open ? 'secondary' : 'primary'}" data-scoring="${m.match_no}" data-open="${m.scoring_open ? 0 : 1}">${m.scoring_open ? 'Lock Scoring' : 'Open Scoring'}</button>
+        </div>
+        <div class="rowflex mt">
           ${m.match_no === 6 ? `<button class="btn secondary" data-gen-both="1">Generate Singles (M6 & M7)</button>` : ''}
         </div>
-      </div></details>`).join('')}</div>`;
+      </div></details>`).join('')}</div>
+    <div class="err hidden" id="score-err"></div>`;
+  const setScoring = async (matchNo, open) => {
+    await api(`/api/admin/matches/${matchNo}/scoring`, { method: 'POST', body: JSON.stringify({ open }) });
+  };
+  $$('#admin-body [data-scoring]').forEach(b => b.onclick = async () => {
+    try { await setScoring(Number(b.dataset.scoring), b.dataset.open === '1'); adminMatches(); }
+    catch (e) { alert(e.message); }
+  });
+  const bulkScoring = async (open) => {
+    try { for (const m of matches) await setScoring(m.match_no, open); adminMatches(); }
+    catch (e) { alert(e.message); }
+  };
+  $('#score-open-all').onclick = () => bulkScoring(true);
+  $('#score-lock-all').onclick = () => bulkScoring(false);
   $$('#admin-body [data-gen-both]').forEach(b => b.onclick = async () => {
     try {
       await api(`/api/admin/matches/6/generate-singles`, { method: 'POST' });
@@ -1591,6 +1621,27 @@ async function renderCalcutta() {
       <div class="tiny">${board.bid_count} bid${board.bid_count === 1 ? '' : 's'}</div>
     </div>`;
 
+  // Projected payouts sit directly under the pool (Trice's layout pick,
+  // 2026-11-11): they belong to the whole pool, not to whichever team's
+  // bets happen to be listed above them. Until the first scores are in,
+  // the projection is empty — no standings, no payouts.
+  const splitText = [1, 2, 3]
+    .filter(p => Number((board.payouts || {})[p]) > 0)
+    .map(p => `${ordinal(p)} ${board.payouts[p]}%`)
+    .join(' / ') || '1st 100%';
+  html += `
+    <div class="card">
+      <h2>Projected payouts <span class="tiny">· based on live standings</span></h2>
+      ${payoutData.payouts.length === 0
+        ? `<div class="sub">Payouts appear once the first scores are in.</div>`
+        : `<div class="sub">Pool ${cMoney(board.pool_cents)} split ${splitText}.</div>
+      ${payoutData.payouts.map(p => `
+        <div class="cpay">
+          <div class="cpay-head"><span class="cdot" style="background:${teamHex(p.color)}"></span><b>${ordinal(p.place)} · ${esc(p.color)}</b><b>${cMoney(p.prize_cents)}</b></div>
+          ${p.cuts.map(c => `<div class="cbid"><div class="cbid-main"><b>${esc(c.name)}</b><span class="tiny">${c.pct}% of team</span></div><div class="cbid-amt">${cMoney(c.cut_cents)}</div></div>`).join('')}
+        </div>`).join('')}`}
+    </div>`;
+
   if (calcuttaLastBet) {
     const lb = calcuttaLastBet;
     const vuser = board.venmo_username;
@@ -1643,7 +1694,7 @@ async function renderCalcutta() {
   }
 
   html += `
-    <div class="mpill-row" style="margin:12px 0">
+    <div class="mpill-row cteams-grid" style="margin:12px 0">
       ${board.teams.map(t => `<button class="mpill${t.id === calcuttaTeamId ? ' active' : ''}" data-ct="${t.id}"><span class="cdot" style="background:${teamHex(t.color)}"></span>${esc(t.color)} <b>${cMoney(t.total_cents)}</b></button>`).join('')}
     </div>`;
 
@@ -1664,27 +1715,6 @@ async function renderCalcutta() {
         </div>`).join('')}
     </div>`;
   }
-
-  // The split text comes from the configured payout split itself
-  // (board.payouts — the same tournament calcutta_payouts the Admin
-  // "Payout split" card writes), places with pct > 0 in finishing order.
-  // It is NOT derived from the projected-payout list, so the line always
-  // shows the configured split even before standings produce every place.
-  const splitText = [1, 2, 3]
-    .filter(p => Number((board.payouts || {})[p]) > 0)
-    .map(p => `${ordinal(p)} ${board.payouts[p]}%`)
-    .join(' / ') || '1st 100%';
-
-  html += `
-    <div class="card">
-      <h2>Projected payouts <span class="tiny">· based on live standings</span></h2>
-      <div class="sub">Pool ${cMoney(board.pool_cents)} split ${splitText}.</div>
-      ${payoutData.payouts.map(p => `
-        <div class="cpay">
-          <div class="cpay-head"><span class="cdot" style="background:${teamHex(p.color)}"></span><b>${ordinal(p.place)} · ${esc(p.color)}</b><b>${cMoney(p.prize_cents)}</b></div>
-          ${p.cuts.map(c => `<div class="cbid"><div class="cbid-main"><b>${esc(c.name)}</b><span class="tiny">${c.pct}% of team</span></div><div class="cbid-amt">${cMoney(c.cut_cents)}</div></div>`).join('')}
-        </div>`).join('')}
-    </div>`;
 
   if (isAdmin) {
     html += `
