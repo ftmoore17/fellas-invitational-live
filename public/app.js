@@ -1677,7 +1677,7 @@ async function renderCalcutta() {
     if (board.open) {
       html += `
     <div class="card">
-      <h2>Place a bet</h2>
+      <h2>Place A Bet</h2>
       <div class="sub">Own a piece of a team — your % of the team wins 100% of the pool if they win it all. ${board.venmo_username ? `You'll pay @${esc(board.venmo_username)} on Venmo right after.` : `You'll pay on Venmo right after.`}</div>
       <div class="cform${isSpectator ? '' : ' crow'}">
         ${isSpectator ? `<label>Your name<input id="cbet-name" type="text" placeholder="e.g. Mike Smith" value="${esc(specName)}" maxlength="40" autocomplete="name"></label>` : ''}
