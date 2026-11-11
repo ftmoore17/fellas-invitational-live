@@ -95,13 +95,14 @@ function getPayouts(tournamentId) {
       if (!pct) return null;
       const row = placeTeam.get(place);
       if (!row) return null;
-      const prizeCents = Math.round(board.pool_cents * pct / 100);
+      // Whole dollars only, rounded DOWN (Trice, 2026-11-11) — odd cents stay in the pool.
+      const prizeCents = Math.floor(board.pool_cents * pct / 100 / 100) * 100;
       const team = teamBids.get(row.teamId);
       const cuts = team ? team.bids.map(b => ({
         name: b.name,
         amount_cents: b.amount_cents,
         pct: b.pct,
-        cut_cents: team.total_cents > 0 ? Math.round(prizeCents * b.amount_cents / team.total_cents) : 0,
+        cut_cents: team.total_cents > 0 ? Math.floor(prizeCents * b.amount_cents / team.total_cents / 100) * 100 : 0,
       })) : [];
       return {
         place,
